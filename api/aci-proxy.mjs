@@ -4,6 +4,10 @@ import { text } from 'node:stream/consumers';
 const ACI_API = 'https://costikm-api-v2.services.aci.it';
 const ACI_WEB = 'https://costikm.aci.it';
 
+/** Richieste senza UA “browser” a volte ricevono 403 pur con cookie/token validi. */
+const ACI_BROWSER_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
 const TWO_CAPTCHA_API_KEY = process.env.TWO_CAPTCHA_API_KEY;
 const RECAPTCHA_SITE_KEY =
   process.env.RECAPTCHA_SITE_KEY || '6LeJn3kpAAAAANAvxYqVDgtnWSQsm0amZlnvIBCv';
@@ -122,6 +126,50 @@ function setCookieLinesFromHeaders(headers) {
     .split(/,(?=\s*[A-Za-z0-9_.-]+=)/)
     .map((p) => p.trim())
     .filter(Boolean);
+}
+
+/** JWT / bearer restituito da POST /captcha/verify (stesse chiavi tipiche del client Angular). */
+function extractBearerFromVerifyResponse(verifyRes, bodyText) {
+  const authHdr = verifyRes.headers.get('authorization') || verifyRes.headers.get('Authorization');
+  if (authHdr && /^Bearer\s+\S+/i.test(authHdr)) {
+    return authHdr.replace(/^Bearer\s+/i, '').trim();
+  }
+  const xTok =
+    verifyRes.headers.get('x-access-token') ||
+    verifyRes.headers.get('X-Access-Token') ||
+    verifyRes.headers.get('x-auth-token');
+  if (xTok && typeof xTok === 'string' && xTok.length > 30) return xTok.trim();
+
+  if (!bodyText || typeof bodyText !== 'string') return null;
+  const trimmed = bodyText.trim();
+  if (!trimmed) return null;
+  let obj;
+  try {
+    obj = JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+  const keys = ['token', 'access_token', 'accessToken', 'id_token', 'jwt'];
+  function fromObj(o) {
+    if (!o || typeof o !== 'object') return null;
+    for (const k of keys) {
+      const v = o[k];
+      if (typeof v === 'string' && v.length > 30) return v;
+    }
+    return null;
+  }
+  let b = fromObj(obj);
+  if (b) return b;
+  if (obj.data != null) {
+    if (typeof obj.data === 'string' && obj.data.length > 30) return obj.data;
+    b = fromObj(obj.data);
+    if (b) return b;
+  }
+  if (obj.result && typeof obj.result === 'object') {
+    b = fromObj(obj.result);
+    if (b) return b;
+  }
+  return null;
 }
 // =============================================================================
 
@@ -255,9 +303,11 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     const verifyRes = await fetch(`${ACI_API}/captcha/verify`, {
       method: 'POST',
       headers: {
+        Accept: 'application/json, text/plain, */*',
         'Content-Type': 'application/json',
         Origin: ACI_WEB,
         Referer: `${ACI_WEB}/`,
+        'User-Agent': ACI_BROWSER_UA,
       },
       body: JSON.stringify({ data: captchaToken })
     });
@@ -266,6 +316,8 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
 
     const setCookieLines = setCookieLinesFromHeaders(verifyRes.headers);
     const cookieHeader = cookieHeaderFromSetCookieLines(setCookieLines);
+    const verifyBodyText = await verifyRes.text();
+    const bearerFromVerify = extractBearerFromVerifyResponse(verifyRes, verifyBodyText);
 
     const vat =
       vatRaw === 1 || vatRaw === '1' || vatRaw === true ? 1 : 0;
@@ -288,17 +340,29 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
       costsUrl.searchParams.set('ncap', ncap.trim());
     }
 
+    const costsHeaders = {
+      Accept: 'application/json, text/plain, */*',
+      Origin: ACI_WEB,
+      Referer: `${ACI_WEB}/`,
+      'User-Agent': ACI_BROWSER_UA,
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      ...(bearerFromVerify ? { Authorization: `Bearer ${bearerFromVerify}` } : {}),
+    };
+
     const costsRes = await fetch(costsUrl.toString(), {
-      headers: {
-        Accept: 'application/json, text/plain, */*',
-        Origin: ACI_WEB,
-        Referer: `${ACI_WEB}/`,
-        Cookie: cookieHeader,
-      },
+      headers: costsHeaders,
     });
 
     if (!costsRes.ok) {
       if ([401, 403].includes(costsRes.status)) {
+        const costsErrText = await costsRes.text().catch(() => '');
+        console.error('aci-proxy /costs rejected', {
+          status: costsRes.status,
+          hasBearer: Boolean(bearerFromVerify),
+          cookieHeaderLen: cookieHeader.length,
+          verifyBodyLen: verifyBodyText.length,
+          costsBodyPreview: costsErrText.slice(0, 400),
+        });
         res.writeHead(401, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'SESSION_EXPIRED' }));
         return;
