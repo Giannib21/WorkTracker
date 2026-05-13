@@ -5,15 +5,71 @@ const ACI_API = 'https://costikm-api-v2.services.aci.it';
 const ACI_WEB = 'https://costikm.aci.it';
 
 const TWO_CAPTCHA_API_KEY = process.env.TWO_CAPTCHA_API_KEY;
-const RECAPTCHA_SITE_KEY = "6LeJn3kpAAAAANAvxYqVDgtnWSQsm0amZlnvIBCv";
+const RECAPTCHA_SITE_KEY =
+  process.env.RECAPTCHA_SITE_KEY || '6LeJn3kpAAAAANAvxYqVDgtnWSQsm0amZlnvIBCv';
 
-// ==================== FUNZIONI HELPER (incollate qui dentro) ====================
-function defaultExtractId(data) {
-  if (data && typeof data === 'object' && 'id' in data) {
-    const id = data.id;
-    if (typeof id === 'string' && id.length > 0) return id;
+// ==================== FUNZIONI HELPER (corrette per 2Captcha) ====================
+/** Job id da in.php: JSON oppure testo `OK|id`; errori ERROR_* espliciti. */
+function extract2CaptchaInJobId(data) {
+  if (typeof data === 'string') {
+    const t = data.trim();
+    const ok = /^OK\|([\s\S]+)$/.exec(t);
+    if (ok) return ok[1].trim();
+    if (/^ERROR_/i.test(t)) throw new Error(`2Captcha (in.php): ${t}`);
+    throw new Error(
+      `getAsyncResponse: risposta POST testuale non riconosciuta (${t.slice(0, 160).replace(/\s+/g, ' ')})`,
+    );
   }
-  throw new Error('getAsyncResponse: la risposta POST non contiene un campo stringa `id`');
+  if (!data || typeof data !== 'object') {
+    throw new Error('getAsyncResponse: risposta POST non è JSON né testo OK|…');
+  }
+  if (data.status === 0 && typeof data.request === 'string' && data.request.startsWith('ERROR_')) {
+    throw new Error(
+      `2Captcha (in.php): ${data.request}${data.error_text ? ` — ${data.error_text}` : ''}`,
+    );
+  }
+  const req = data.request;
+  if (typeof req === 'string' && req.length > 0) return req;
+  if (typeof req === 'number' && Number.isFinite(req)) return String(req);
+  const alt = data.id ?? data.taskId;
+  if (typeof alt === 'string' && alt.length > 0) return alt;
+  if (typeof alt === 'number' && Number.isFinite(alt)) return String(alt);
+  throw new Error(
+    `getAsyncResponse: nessun job id (request/id). Chiavi: ${Object.keys(data).join(', ')}`,
+  );
+}
+
+function coerceNumericStatus(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return NaN;
+}
+
+/** Risultato res.php: JSON o testo OK|token / CAPCHA_NOT_READY / ERROR_*. */
+function parse2CaptchaPollResult(data) {
+  if (typeof data === 'string') {
+    const t = data.trim();
+    if (/^OK\|/.test(t)) return { ready: true, token: t.slice(3).trim() };
+    if (/^ERROR_/i.test(t)) throw new Error(`2Captcha (res.php): ${t}`);
+    return { ready: false };
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('getAsyncResponse: risposta status non è JSON né testo');
+  }
+  const st = coerceNumericStatus(data.status);
+  if (!Number.isFinite(st)) {
+    throw new Error('getAsyncResponse: campo `status` mancante o non numerico');
+  }
+  if (st === 1) {
+    const r = data.request;
+    if (typeof r === 'string') return { ready: true, token: r };
+    if (r != null && r !== '') return { ready: true, token: String(r) };
+    throw new Error('getAsyncResponse: status=1 ma `request` mancante');
+  }
+  return { ready: false };
 }
 
 function resolveStatusUrl(statusUrl, id) {
@@ -29,25 +85,15 @@ async function getAsyncResponse(options) {
     headers: options.headers,
   });
 
-  const id = defaultExtractId(postRes.data);
+  const id = extract2CaptchaInJobId(postRes.data);
   const pollUrl = resolveStatusUrl(options.statusUrl, id);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     await new Promise(r => setTimeout(r, pollIntervalMs));
 
     const statusRes = await client.get(pollUrl, { headers: options.headers });
-    const data = statusRes.data;
-
-    if (!data || typeof data !== 'object') {
-      throw new Error('getAsyncResponse: risposta status non è un oggetto JSON');
-    }
-
-    const { status, request } = data;
-    if (typeof status !== 'number') {
-      throw new Error('getAsyncResponse: campo `status` mancante o non numerico');
-    }
-
-    if (status === 1) return request;
+    const parsed = parse2CaptchaPollResult(statusRes.data);
+    if (parsed.ready) return parsed.token;
   }
 
   throw new Error(`getAsyncResponse: timeout dopo ${maxAttempts} tentativi`);
@@ -62,6 +108,20 @@ function cookieHeaderFromSetCookieLines(setCookieLines) {
     }
   }
   return parts.join('; ');
+}
+
+/** Righe Set-Cookie: preferisci getSetCookie(); altrimenti splitta header unico (Node fetch). */
+function setCookieLinesFromHeaders(headers) {
+  if (typeof headers.getSetCookie === 'function') {
+    const arr = headers.getSetCookie();
+    if (arr?.length) return arr;
+  }
+  const raw = headers.get('set-cookie');
+  if (!raw) return [];
+  return raw
+    .split(/,(?=\s*[A-Za-z0-9_.-]+=)/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 // =============================================================================
 
@@ -161,7 +221,18 @@ export default async function handler(req, res) {
 
 // ======================== CALCOLO COSTI ========================
 async function handleCalculateCosts(req, res, payload, requestOrigin) {
-  const { brandId, brandName, fuelId, fuelName, modelId, modelName, date } = payload;
+  const {
+    brandId,
+    brandName,
+    fuelId,
+    fuelName,
+    modelId,
+    modelName,
+    date,
+    vat: vatRaw,
+    classe_euro,
+    ncap,
+  } = payload;
 
   if (!brandId || !fuelId || !modelId || !date) {
     res.writeHead(400, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
@@ -173,7 +244,9 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     if (!TWO_CAPTCHA_API_KEY) throw new Error('TWO_CAPTCHA_API_KEY non configurata');
 
     const captchaToken = await getAsyncResponse({
-      targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${RECAPTCHA_SITE_KEY}&pageurl=https://costikm.aci.it/`,
+      targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${encodeURIComponent(
+        RECAPTCHA_SITE_KEY,
+      )}&pageurl=${encodeURIComponent('https://costikm.aci.it/')}&json=1`,
       statusUrl: (id) => `https://2captcha.com/res.php?key=${TWO_CAPTCHA_API_KEY}&action=get&id=${id}&json=1`,
       pollIntervalMs: 6000,
       maxAttempts: 80
@@ -191,26 +264,37 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
 
     if (!verifyRes.ok) throw new Error(`Verify fallita: ${verifyRes.status}`);
 
-    const setCookieLines = verifyRes.headers.getSetCookie?.() || [];
+    const setCookieLines = setCookieLinesFromHeaders(verifyRes.headers);
     const cookieHeader = cookieHeaderFromSetCookieLines(setCookieLines);
 
+    const vat =
+      vatRaw === 1 || vatRaw === '1' || vatRaw === true ? 1 : 0;
+
     const costsUrl = new URL(`${ACI_API}/costs`);
-    costsUrl.searchParams.set('date', date);
-    costsUrl.searchParams.set('brandId', brandId);
-    costsUrl.searchParams.set('brand', encodeURIComponent(brandName));
-    costsUrl.searchParams.set('fuelId', fuelId);
-    costsUrl.searchParams.set('fuel', encodeURIComponent(fuelName));
-    costsUrl.searchParams.set('modelId', modelId);
-    costsUrl.searchParams.set('model', encodeURIComponent(modelName));
+    costsUrl.searchParams.set('date', String(date));
+    costsUrl.searchParams.set('brandId', String(brandId));
+    costsUrl.searchParams.set('brand', String(brandName ?? ''));
+    costsUrl.searchParams.set('fuelId', String(fuelId));
+    costsUrl.searchParams.set('fuel', String(fuelName ?? ''));
+    costsUrl.searchParams.set('modelId', String(modelId));
+    costsUrl.searchParams.set('model', String(modelName ?? ''));
     costsUrl.searchParams.set('categoryId', '1');
     costsUrl.searchParams.set('type', 'vehicle');
+    costsUrl.searchParams.set('vat', String(vat));
+    if (typeof classe_euro === 'string' && classe_euro.trim()) {
+      costsUrl.searchParams.set('classe_euro', classe_euro.trim());
+    }
+    if (typeof ncap === 'string' && ncap.trim()) {
+      costsUrl.searchParams.set('ncap', ncap.trim());
+    }
 
     const costsRes = await fetch(costsUrl.toString(), {
       headers: {
+        Accept: 'application/json, text/plain, */*',
         Origin: ACI_WEB,
         Referer: `${ACI_WEB}/`,
         Cookie: cookieHeader,
-      }
+      },
     });
 
     if (!costsRes.ok) {

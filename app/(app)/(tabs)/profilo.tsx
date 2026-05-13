@@ -149,7 +149,10 @@ export default function ProfiloTab() {
         </Card.Content>
       </Card>
 
-      <AciCostikmProfileSection disabled={loading || saving} />
+      <AciCostikmProfileSection
+        disabled={loading || saving}
+        onApplyEurPerKm={(v) => setEurPerKm(v)}
+      />
 
       <Button mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
         {messages.profileSaveButton}

@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -18,8 +18,19 @@ import {
 import * as Clipboard from 'expo-clipboard';
 
 import { useAppLocale } from '../context/AppLocaleContext';
-import { fetchAciBrands, fetchAciFuels, fetchAciModels, type AciBrand, type AciFuel, type AciModel } from '../utils/aciCostikmClient';
+import {
+  fetchAciBrands,
+  fetchAciCostsViaProxyCalculate,
+  fetchAciFuels,
+  fetchAciModels,
+  isSessionExpiredError,
+  type AciBrand,
+  type AciFuel,
+  type AciModel,
+} from '../utils/aciCostikmClient';
+import { extractEurPerKmBandOptions, extractSuggestedEurPerKmFromCosts } from '../utils/aciCostikmCostsParse';
 import { aciModelsListTimestampMs } from '../utils/aciCostikmTimestamp';
+import { sanitizeDecimalTyping } from '../utils/decimalInput';
 
 type PickerKind = 'brand' | 'fuel' | 'model' | null;
 
@@ -27,11 +38,14 @@ const ACI_OFFICIAL_CALC_URL = 'https://costikm.aci.it/home';
 
 type Props = {
   disabled?: boolean;
+  onApplyEurPerKm: (sanitizedDecimal: string) => void;
 };
 
-export function AciCostikmProfileSection({ disabled = false }: Props) {
+export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: Props) {
   const theme = useTheme();
   const { messages } = useAppLocale();
+
+  const proxyUrl = useMemo(() => process.env.EXPO_PUBLIC_ACI_PROXY_URL?.trim() ?? '', []);
 
   const [brands, setBrands] = useState<AciBrand[]>([]);
   const [fuels, setFuels] = useState<AciFuel[]>([]);
@@ -45,9 +59,13 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingFuels, setLoadingFuels] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
+  const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resultJson, setResultJson] = useState<string | null>(null);
+  const [suggestedEur, setSuggestedEur] = useState<string | null>(null);
+  const [eurBands, setEurBands] = useState<{ label: string; value: string }[]>([]);
 
-  const busy = disabled || loadingBrands || loadingFuels || loadingModels;
+  const busy = disabled || loadingBrands || loadingFuels || loadingModels || calculating;
 
   const loadBrands = useCallback(async () => {
     setError(null);
@@ -60,6 +78,9 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
       setModel(null);
       setFuels([]);
       setModels([]);
+      setResultJson(null);
+      setSuggestedEur(null);
+      setEurBands([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : messages.aciWizardErrGeneric);
     } finally {
@@ -128,6 +149,9 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
     setCostDate(format(new Date(), 'dd-MM-yyyy'));
     setVatNet(false);
     setPicker(null);
+    setResultJson(null);
+    setSuggestedEur(null);
+    setEurBands([]);
   }
 
   async function onCopySelectionSummary(): Promise<void> {
@@ -146,6 +170,50 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
     ];
     await Clipboard.setStringAsync(lines.join('\n'));
     Alert.alert(messages.alertSaved, messages.aciWizardCopySelectionDone);
+  }
+
+  async function onFetchCostsViaProxy() {
+    if (!brand || !fuel || !model) {
+      setError(messages.aciWizardErrIncomplete);
+      return;
+    }
+    if (!proxyUrl) {
+      setError(messages.aciWizardCostFetchProxyRequired);
+      return;
+    }
+    setError(null);
+    setCalculating(true);
+    setResultJson(null);
+    setSuggestedEur(null);
+    setEurBands([]);
+    try {
+      const data = await fetchAciCostsViaProxyCalculate({
+        brandId: brand.id,
+        brandName: brand.name,
+        fuelId: fuel.id,
+        fuelName: fuel.name,
+        modelId: model.id,
+        modelName: model.name,
+        date: costDate.trim(),
+        vat: vatNet ? 1 : 0,
+        classe_euro: typeof model.classe_euro === 'string' ? model.classe_euro : undefined,
+        ncap: typeof model.ncap === 'string' ? model.ncap : undefined,
+      });
+      setResultJson(JSON.stringify(data, null, 2));
+      setEurBands(extractEurPerKmBandOptions(data));
+      setSuggestedEur(extractSuggestedEurPerKmFromCosts(data));
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : '';
+      if (raw === 'MISSING_ACI_PROXY') {
+        setError(messages.aciWizardCostFetchProxyRequired);
+      } else if (isSessionExpiredError(raw)) {
+        setError(messages.aciWizardSessionExpired);
+      } else {
+        setError(raw || messages.aciWizardErrGeneric);
+      }
+    } finally {
+      setCalculating(false);
+    }
   }
 
   function renderPickerItems() {
@@ -275,6 +343,29 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
 
         <Divider />
 
+        <Text variant="titleSmall" style={{ opacity: 0.92 }}>
+          {messages.aciWizardCostFetchTitle}
+        </Text>
+        <Text variant="bodySmall" style={{ opacity: 0.76 }}>
+          {messages.aciWizardCostFetchBody}
+        </Text>
+        <Button
+          mode="contained-tonal"
+          icon="cloud-download-outline"
+          onPress={() => void onFetchCostsViaProxy()}
+          disabled={busy || !model}
+          loading={calculating}
+        >
+          {messages.aciWizardCostFetchButton}
+        </Button>
+        {!proxyUrl ? (
+          <Text variant="bodySmall" style={{ opacity: 0.65 }}>
+            {messages.aciWizardCostFetchProxyRequired}
+          </Text>
+        ) : null}
+
+        <Divider />
+
         <Button
           mode="contained"
           icon="open-in-new"
@@ -286,6 +377,42 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
         <Button mode="outlined" icon="content-copy" onPress={() => void onCopySelectionSummary()} disabled={busy || !model}>
           {messages.aciWizardCopySelectionSummary}
         </Button>
+
+        {resultJson ? (
+          <View style={{ gap: 8 }}>
+            <Text variant="labelLarge">{messages.aciWizardResultTitle}</Text>
+            <ScrollView style={styles.jsonScroll} nestedScrollEnabled>
+              <Text selectable variant="bodySmall" style={styles.jsonText}>
+                {resultJson.length > 4000 ? `${resultJson.slice(0, 4000)}…` : resultJson}
+              </Text>
+            </ScrollView>
+            {eurBands.length > 0 || suggestedEur ? (
+              <Text variant="bodySmall" style={{ opacity: 0.78 }}>
+                {messages.aciWizardKmBandsHint}
+              </Text>
+            ) : null}
+            {eurBands.length > 0
+              ? eurBands.map((b, i) => (
+                  <Button
+                    key={`${b.label}-${b.value}-${i}`}
+                    mode="contained-tonal"
+                    onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(b.value))}
+                    disabled={busy}
+                  >
+                    {messages.aciWizardApplyRate}: {b.value} — {b.label}
+                  </Button>
+                ))
+              : suggestedEur ? (
+                  <Button
+                    mode="contained-tonal"
+                    onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(suggestedEur))}
+                    disabled={busy}
+                  >
+                    {messages.aciWizardApplyRate} ({suggestedEur})
+                  </Button>
+                ) : null}
+          </View>
+        ) : null}
 
         <Portal>
           <Dialog visible={picker !== null} onDismiss={() => setPicker(null)}>
@@ -306,4 +433,6 @@ export function AciCostikmProfileSection({ disabled = false }: Props) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  jsonScroll: { maxHeight: 220, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ccc', borderRadius: 8 },
+  jsonText: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }), padding: 8 },
 });

@@ -121,6 +121,14 @@ export type Messages = {
   aciWizardCopyLabelDate: string;
   aciWizardCopyLabelVatNet: string;
   aciWizardCopyLabelVatGross: string;
+  aciWizardCostFetchTitle: string;
+  aciWizardCostFetchBody: string;
+  aciWizardCostFetchButton: string;
+  aciWizardCostFetchProxyRequired: string;
+  aciWizardSessionExpired: string;
+  aciWizardResultTitle: string;
+  aciWizardApplyRate: string;
+  aciWizardKmBandsHint: string;
   settingsSaveButton: string;
   settingsSavedTitle: string;
   settingsSavedBody: string;
@@ -334,7 +342,7 @@ const IT: Messages = {
   settingsCarModel: 'Modello auto',
   settingsEurPerKm: '€/km (decimale)',
   settingsDecimalHint: 'Usa virgola o punto per i decimali (es. 0,35 €/km).',
-  settingsAciPhase2Hint: 'Fase 2: aggiornamento automatico da ACI (per ora inserimento manuale del €/km).',
+  settingsAciPhase2Hint: 'Fase 2: con proxy configurato puoi richiedere il €/km da Profilo; altrimenti inserimento manuale.',
   aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
   aciWizardIntro:
     'Carica marche, carburante e modello (elenchi pubblici ACI). Il valore €/km ufficiale va preso solo dal calcolatore sul sito: copia il riepilogo qui sotto e incollalo lì, poi trascrivi il €/km nel campo sopra in Profilo.',
@@ -360,6 +368,16 @@ const IT: Messages = {
   aciWizardCopyLabelDate: 'Data riferimento',
   aciWizardCopyLabelVatNet: 'Importo netto (IVA esclusa)',
   aciWizardCopyLabelVatGross: 'Importo lordo',
+  aciWizardCostFetchTitle: 'Calcolo €/km (proxy didattico)',
+  aciWizardCostFetchBody:
+    'Se `EXPO_PUBLIC_ACI_PROXY_URL` punta al tuo `aci-proxy` con risolutore captcha lato server, qui puoi richiedere il JSON costi. L’operazione può richiedere diversi minuti (polling servizio esterno). Solo per ambienti di prova.',
+  aciWizardCostFetchButton: 'Richiedi dati costo',
+  aciWizardCostFetchProxyRequired:
+    'Imposta `EXPO_PUBLIC_ACI_PROXY_URL` verso il deploy che espone `aci-proxy` (e riavvia Metro) per abilitare il pulsante.',
+  aciWizardSessionExpired: 'Sessione non valida (401). Riprova più tardi o verifica il proxy.',
+  aciWizardResultTitle: 'Risposta',
+  aciWizardApplyRate: 'Applica al campo €/km',
+  aciWizardKmBandsHint: 'Se il JSON contiene più fasce km, scegli un valore qui sotto.',
   settingsSaveButton: 'Salva impostazioni',
   settingsSavedTitle: 'Salvato',
   settingsSavedBody: 'Impostazioni aggiornate.',
@@ -576,7 +594,7 @@ const EN: Messages = {
   settingsCarModel: 'Car model',
   settingsEurPerKm: '€/km (decimal)',
   settingsDecimalHint: 'Use comma or dot for decimals (e.g. 0.35 €/km).',
-  settingsAciPhase2Hint: 'Phase 2: automatic ACI rate updates (manual €/km entry for now).',
+  settingsAciPhase2Hint: 'Phase 2: with a configured proxy you can request €/km from Profile; otherwise enter it manually.',
   aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
   aciWizardIntro:
     'Load brand, fuel and model (public ACI lists). The official €/km must be taken only from the website calculator: copy the summary below into the site, then type the €/km into the field above on this screen.',
@@ -602,6 +620,16 @@ const EN: Messages = {
   aciWizardCopyLabelDate: 'Reference date',
   aciWizardCopyLabelVatNet: 'Net amount (excl. VAT)',
   aciWizardCopyLabelVatGross: 'Gross amount',
+  aciWizardCostFetchTitle: '€/km calculation (didactic proxy)',
+  aciWizardCostFetchBody:
+    'If `EXPO_PUBLIC_ACI_PROXY_URL` points to your `aci-proxy` with server-side captcha solving, you can request the costs JSON here. This may take several minutes (external polling). For test environments only.',
+  aciWizardCostFetchButton: 'Request cost data',
+  aciWizardCostFetchProxyRequired:
+    'Set `EXPO_PUBLIC_ACI_PROXY_URL` to your `aci-proxy` deployment (and restart Metro) to enable the button.',
+  aciWizardSessionExpired: 'Invalid session (401). Retry later or check the proxy.',
+  aciWizardResultTitle: 'Response',
+  aciWizardApplyRate: 'Apply to €/km field',
+  aciWizardKmBandsHint: 'If the JSON contains multiple km bands, pick a value below.',
   settingsSaveButton: 'Save settings',
   settingsSavedTitle: 'Saved',
   settingsSavedBody: 'Settings updated.',
