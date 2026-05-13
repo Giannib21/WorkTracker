@@ -44,10 +44,22 @@ function parseFlexibleNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Km interi come sul sito ACI: `10000`, `10.000` (migliaia con punto), `10 000`. */
 export function parseKmAnnual(v: unknown): number | null {
-  const n = parseFlexibleNumber(v);
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    const r = Math.round(v);
+    if (r >= 500 && r <= 500_000) return r;
+    return null;
+  }
+  if (typeof v !== 'string') return null;
+  let s = v.trim().replace(/\s/g, '').replace(/[^\d.,]/g, '');
+  if (!s) return null;
+  if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  else if (/^\d{1,3}(,\d{3})+$/.test(s)) s = s.replace(/,/g, '');
+  const n = parseFlexibleNumber(s);
   if (n == null || !Number.isFinite(n)) return null;
-  if (n >= 500 && n <= 500_000) return Math.round(n);
+  const r = Math.round(n);
+  if (r >= 500 && r <= 500_000) return r;
   return null;
 }
 
@@ -77,14 +89,23 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
       obj.kmAnno ??
       obj.annual_km ??
       obj.annualKm ??
+      obj.chilometri_annui ??
+      obj.chilometraggio_annuo ??
+      obj.percorrenza_annua ??
+      obj.percorrenzaAnnua ??
+      obj.soglia_km ??
+      obj.sogliaKm ??
       obj.km;
     const costRaw =
       obj.eur_per_km ??
       obj.eurPerKm ??
+      obj.euro_km ??
+      obj.euroKm ??
       obj.cost_per_km ??
       obj.costPerKm ??
       obj.importo_eur_km ??
       obj.costo_km ??
+      obj.costoKm ??
       obj.importo ??
       obj.costo;
     const km = parseKmAnnual(kmRaw);
@@ -97,6 +118,11 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
     if (!node || typeof node !== 'object') return;
     if (Array.isArray(node)) {
       node.forEach((item) => {
+        if (Array.isArray(item) && item.length >= 2) {
+          const km = parseKmAnnual(item[0]);
+          const cost = parseEurPerKm(item[1]);
+          if (km != null && cost != null) addBand(km, cost);
+        }
         if (item && typeof item === 'object' && !Array.isArray(item)) considerObject(item as Record<string, unknown>);
         walk(item, depth + 1);
       });
@@ -109,10 +135,24 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
         low.includes('fascia') ||
         low.includes('band') ||
         low.includes('scagl') ||
+        low.includes('percorrenz') ||
+        low.includes('complessiv') ||
+        low.includes('chilometr') ||
+        low.includes('tabella') ||
+        low.includes('matrix') ||
+        low.includes('rows') ||
+        low.includes('outcome') ||
         (low.includes('km') && (low.includes('ann') || low.includes('max') || low.includes('min')))
       ) {
         walk(val, depth + 1);
-      } else if (low === 'search' || low === 'vehicle' || low === 'costs' || low === 'data' || low === 'result') {
+      } else if (
+        low === 'search' ||
+        low === 'vehicle' ||
+        low === 'costs' ||
+        low === 'data' ||
+        low === 'result' ||
+        low === 'raw'
+      ) {
         walk(val, depth + 1);
       }
     }
@@ -152,10 +192,15 @@ export function extractSuggestedEurPerKmFromCosts(data: unknown): string | null 
   const tryPaths: string[][] = [
     ['search', 'eur_per_km'],
     ['search', 'vehicle', 'eur_per_km'],
+    ['search', 'vehicle', 'costPerKm'],
     ['eur_per_km'],
     ['cost_per_km'],
+    ['costPerKm'],
     ['search', 'cost_per_km'],
     ['data', 'eur_per_km'],
+    ['totaleEurPerKm'],
+    ['totale_eur_per_km'],
+    ['search', 'totaleEurPerKm'],
   ];
   for (const path of tryPaths) {
     let cur: unknown = data;

@@ -8,6 +8,40 @@ const ACI_WEB = 'https://costikm.aci.it';
 const ACI_BROWSER_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+/** Come l’interceptor Angular costikm (`main.*.js`): gateway/API spesso si aspettano questa chiave. */
+const ACI_APP_KEY = 'costikm';
+
+/**
+ * Token Keycloak opzionale (stesso `localStorage.token` dopo login CIE sul sito).
+ * Senza login sul portale l’interceptor non invia Bearer; alcuni ambienti richiedono comunque sessione OIDC per `/costs`.
+ * Imposta su Vercel es. `ACI_COSTIKM_KEYCLOAK_TOKEN` (JWT) da rinnovare periodicamente (`npm run aci:capture`).
+ */
+function optionalKeycloakBearer() {
+  const t =
+    process.env.ACI_COSTIKM_KEYCLOAK_TOKEN ||
+    process.env.ACI_KEYCLOAK_ACCESS_TOKEN ||
+    process.env.ACI_COSTIKM_BEARER;
+  if (typeof t !== 'string') return null;
+  const s = t.trim();
+  return s.length > 40 ? s : null;
+}
+
+/** Header comuni alle chiamate verso `costikm-api-v2` (allineati al client web). */
+function aciApiBaseHeaders(extra = {}) {
+  return {
+    Accept: 'application/json, text/plain, */*',
+    'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+    Origin: ACI_WEB,
+    Referer: `${ACI_WEB}/home`,
+    'User-Agent': ACI_BROWSER_UA,
+    'X-Application-Key': ACI_APP_KEY,
+    'Sec-Fetch-Site': 'same-site',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+    ...extra,
+  };
+}
+
 const TWO_CAPTCHA_API_KEY = process.env.TWO_CAPTCHA_API_KEY;
 const RECAPTCHA_SITE_KEY =
   process.env.RECAPTCHA_SITE_KEY || '6LeJn3kpAAAAANAvxYqVDgtnWSQsm0amZlnvIBCv';
@@ -143,6 +177,23 @@ function setCookieLinesFromHeaders(headers) {
 }
 
 const JWT_LIKE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+/** JWT eventualmente incastonato in un cookie HttpOnly (raro ma a costo zero da provare). */
+function extractJwtFromCookieHeader(cookieHeader) {
+  if (!cookieHeader || typeof cookieHeader !== 'string') return null;
+  for (const segment of cookieHeader.split(';')) {
+    const eq = segment.indexOf('=');
+    if (eq === -1) continue;
+    let val = segment.slice(eq + 1).trim();
+    try {
+      val = decodeURIComponent(val);
+    } catch {
+      /* ignore */
+    }
+    if (val.length > 50 && JWT_LIKE.test(val)) return val;
+  }
+  return null;
+}
 
 function findJwtStringDeep(node, depth) {
   if (depth > 14 || node == null) return null;
@@ -326,17 +377,32 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
   try {
     if (!TWO_CAPTCHA_API_KEY) throw new Error('TWO_CAPTCHA_API_KEY non configurata');
 
+    const envBearer = optionalKeycloakBearer();
+
     const jar = new CookieJar();
     const warmRes = await fetch(`${ACI_WEB}/`, {
       method: 'GET',
       redirect: 'follow',
       headers: {
         Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
         'User-Agent': ACI_BROWSER_UA,
         Referer: `${ACI_WEB}/`,
       },
     });
     jar.mergeFromHeaders(warmRes.headers);
+    const warmHome = await fetch(`${ACI_WEB}/home`, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+        'User-Agent': ACI_BROWSER_UA,
+        Referer: `${ACI_WEB}/`,
+        ...(jar.toHeaderString() ? { Cookie: jar.toHeaderString() } : {}),
+      },
+    });
+    jar.mergeFromHeaders(warmHome.headers);
 
     const captchaToken = await getAsyncResponse({
       targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${encodeURIComponent(
@@ -350,15 +416,12 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     const preVerifyCookie = jar.toHeaderString();
     const verifyRes = await fetch(`${ACI_API}/captcha/verify`, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json, text/plain, */*',
+      headers: aciApiBaseHeaders({
         'Content-Type': 'application/json',
-        Origin: ACI_WEB,
-        Referer: `${ACI_WEB}/`,
-        'User-Agent': ACI_BROWSER_UA,
         ...(preVerifyCookie ? { Cookie: preVerifyCookie } : {}),
-      },
-      body: JSON.stringify({ data: captchaToken })
+        ...(envBearer ? { Authorization: `Bearer ${envBearer}` } : {}),
+      }),
+      body: JSON.stringify({ data: captchaToken }),
     });
 
     if (!verifyRes.ok) {
@@ -370,6 +433,8 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     const verifyBodyText = await verifyRes.text();
     const bearerFromVerify = extractBearerFromVerifyResponse(verifyRes, verifyBodyText);
     const cookieHeader = jar.toHeaderString();
+    const bearerFromCookies = extractJwtFromCookieHeader(cookieHeader);
+    const bearerForCosts = bearerFromVerify || envBearer || bearerFromCookies;
 
     const vat =
       vatRaw === 1 || vatRaw === '1' || vatRaw === true ? 1 : 0;
@@ -392,14 +457,10 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
       costsUrl.searchParams.set('ncap', ncap.trim());
     }
 
-    const costsHeaders = {
-      Accept: 'application/json, text/plain, */*',
-      Origin: ACI_WEB,
-      Referer: `${ACI_WEB}/`,
-      'User-Agent': ACI_BROWSER_UA,
+    const costsHeaders = aciApiBaseHeaders({
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      ...(bearerFromVerify ? { Authorization: `Bearer ${bearerFromVerify}` } : {}),
-    };
+      ...(bearerForCosts ? { Authorization: `Bearer ${bearerForCosts}` } : {}),
+    });
 
     const costsRes = await fetch(costsUrl.toString(), {
       headers: costsHeaders,
@@ -415,10 +476,17 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
         } catch {
           /* ignore */
         }
+        const cookieNames = cookieHeader
+          .split(';')
+          .map((p) => p.split('=')[0]?.trim())
+          .filter(Boolean);
         console.error('aci-proxy /costs rejected', {
           status: costsRes.status,
-          hasBearer: Boolean(bearerFromVerify),
+          hasBearer: Boolean(bearerForCosts),
+          bearerSource: bearerFromVerify ? 'verify' : envBearer ? 'env' : bearerFromCookies ? 'cookie' : 'none',
+          hasXApplicationKey: true,
           cookieHeaderLen: cookieHeader.length,
+          cookieNames,
           verifyBodyLen: verifyBodyText.length,
           verifyKeys,
           costsBodyPreview: costsErrText.slice(0, 400),
