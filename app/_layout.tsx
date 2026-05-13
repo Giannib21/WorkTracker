@@ -6,7 +6,7 @@ import { Button, configureFonts, MD3LightTheme, PaperProvider, Text, type MD3The
 import { WebSqliteBlockedScreen } from '../components/WebSqliteBlockedScreen';
 import { AppLocaleProvider } from '../context/AppLocaleContext';
 import { FloatingNumericKeyboardProvider } from '../components/FloatingNumericKeyboardProvider';
-import { initDb } from '../db/database';
+import { initDb, resetDbConnection } from '../db/database';
 import { isExpoSqliteWebStorageAvailable } from '../utils/sqliteWebSupport';
 
 /** ~7% sopra allo typescale MD3: testi Paper (body, titoli campi, bottoni) leggermente più grandi senza cambiare layout drastico */
@@ -52,10 +52,13 @@ type BootState =
 export default function RootLayout() {
   const [boot, setBoot] = useState<BootState>({ kind: 'loading' });
 
-  const runInit = useCallback(async () => {
+  const runInit = useCallback(async (opts?: { reset?: boolean }) => {
     if (Platform.OS === 'web' && !isExpoSqliteWebStorageAvailable()) {
       setBoot({ kind: 'web_sqlite' });
       return;
+    }
+    if (opts?.reset) {
+      await resetDbConnection();
     }
     setBoot({ kind: 'loading' });
     try {
@@ -64,7 +67,27 @@ export default function RootLayout() {
     } catch (error) {
       console.error('Database init error:', error);
       const message = error instanceof Error ? error.message : String(error);
-      setBoot({ kind: 'db_error', message });
+      const maybeInvalidState =
+        /InvalidStateError|invalid state/i.test(message) && Platform.OS === 'web';
+      if (maybeInvalidState) {
+        await resetDbConnection();
+        try {
+          await initDb();
+          setBoot({ kind: 'ready' });
+          return;
+        } catch (e2) {
+          console.error('Database init retry error:', e2);
+          setBoot({
+            kind: 'db_error',
+            message: e2 instanceof Error ? e2.message : String(e2),
+          });
+          return;
+        }
+      }
+      setBoot({
+        kind: 'db_error',
+        message: error instanceof Error ? error.message : String(error),
+      });
     }
   }, []);
 
@@ -100,7 +123,7 @@ export default function RootLayout() {
           <Text variant="bodyMedium" style={{ opacity: 0.85 }}>
             {boot.message}
           </Text>
-          <Button mode="contained" onPress={() => void runInit()}>
+          <Button mode="contained" onPress={() => void runInit({ reset: true })}>
             Riprova
           </Button>
         </View>

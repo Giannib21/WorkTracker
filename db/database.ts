@@ -48,9 +48,25 @@ export type SpesaUpdate = Partial<Omit<SpesaRow, 'id'>> & { id: number };
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+/** Chiude il DB e azzera il singleton (utile su web dopo InvalidStateError o prima di «Riprova»). */
+export async function resetDbConnection(): Promise<void> {
+  const existing = dbPromise;
+  dbPromise = null;
+  if (!existing) return;
+  try {
+    const db = await existing;
+    await db.closeAsync();
+  } catch {
+    /* ignore */
+  }
+}
+
 function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync('worktracker.db');
+    dbPromise = SQLite.openDatabaseAsync('worktracker.db').catch((err) => {
+      dbPromise = null;
+      throw err;
+    });
   }
   return dbPromise;
 }
