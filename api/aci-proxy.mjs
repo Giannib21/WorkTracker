@@ -1,13 +1,69 @@
 // api/aci-proxy.mjs
 import { text } from 'node:stream/consumers';
-import { getAsyncResponse } from '../utils/getAsyncResponse.js';           // ← percorso corretto
-import { cookieHeaderFromSetCookieLines } from '../utils/cookieHeaderFromSetCookieLines.js'; // ← percorso corretto
 
 const ACI_API = 'https://costikm-api-v2.services.aci.it';
 const ACI_WEB = 'https://costikm.aci.it';
 
 const TWO_CAPTCHA_API_KEY = process.env.TWO_CAPTCHA_API_KEY;
-const RECAPTCHA_SITE_KEY = 'INSERISCI_QUI_LA_SITEKEY_DI_ACI';   // ← da cambiare tra poco
+const RECAPTCHA_SITE_KEY = "6LeJn3kpAAAAANAvxYqVDgtnWSQsm0amZlnvIBCv";
+
+// ==================== FUNZIONI HELPER (incollate qui dentro) ====================
+function defaultExtractId(data) {
+  if (data && typeof data === 'object' && 'id' in data) {
+    const id = data.id;
+    if (typeof id === 'string' && id.length > 0) return id;
+  }
+  throw new Error('getAsyncResponse: la risposta POST non contiene un campo stringa `id`');
+}
+
+function resolveStatusUrl(statusUrl, id) {
+  return typeof statusUrl === 'function' ? statusUrl(id) : statusUrl;
+}
+
+async function getAsyncResponse(options) {
+  const client = options.axios ?? (await import('axios')).default;
+  const pollIntervalMs = options.pollIntervalMs ?? 6000;
+  const maxAttempts = options.maxAttempts ?? 80;
+
+  const postRes = await client.post(options.targetUrl, options.postBody ?? null, {
+    headers: options.headers,
+  });
+
+  const id = defaultExtractId(postRes.data);
+  const pollUrl = resolveStatusUrl(options.statusUrl, id);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await new Promise(r => setTimeout(r, pollIntervalMs));
+
+    const statusRes = await client.get(pollUrl, { headers: options.headers });
+    const data = statusRes.data;
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('getAsyncResponse: risposta status non è un oggetto JSON');
+    }
+
+    const { status, request } = data;
+    if (typeof status !== 'number') {
+      throw new Error('getAsyncResponse: campo `status` mancante o non numerico');
+    }
+
+    if (status === 1) return request;
+  }
+
+  throw new Error(`getAsyncResponse: timeout dopo ${maxAttempts} tentativi`);
+}
+
+function cookieHeaderFromSetCookieLines(setCookieLines) {
+  const parts = [];
+  for (const line of setCookieLines) {
+    const pair = line.split(';')[0]?.trim();
+    if (pair && pair.includes('=')) {
+      parts.push(pair);
+    }
+  }
+  return parts.join('; ');
+}
+// =============================================================================
 
 function isAllowedPath(pathname) {
   return pathname.startsWith('/vehicles/');
@@ -47,19 +103,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  // ========================
-  // NUOVA MODALITÀ: CALCOLO COSTI CON 2CAPTCHA
-  // ========================
   if (payload.mode === 'calculateCosts') {
     return await handleCalculateCosts(req, res, payload, origin);
   }
 
-  // ========================
-  // CODICE VECCHIO (catalogo veicoli) – resta uguale
-  // ========================
+  // === CODICE VECCHIO (catalogo veicoli) ===
   const rawPath = typeof payload.path === 'string' ? payload.path : '';
-  let pathname;
-  let search = '';
+  let pathname, search = '';
   try {
     const u = new URL(rawPath, 'http://local');
     pathname = u.pathname;
@@ -109,16 +159,9 @@ export default async function handler(req, res) {
   res.end(body);
 }
 
-// ========================
-// FUNZIONE CHE FA TUTTO IL LAVORO DEI COSTI
-// ========================
+// ======================== CALCOLO COSTI ========================
 async function handleCalculateCosts(req, res, payload, requestOrigin) {
-  const {
-    brandId, brandName,
-    fuelId, fuelName,
-    modelId, modelName,
-    date
-  } = payload;
+  const { brandId, brandName, fuelId, fuelName, modelId, modelName, date } = payload;
 
   if (!brandId || !fuelId || !modelId || !date) {
     res.writeHead(400, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
@@ -127,11 +170,8 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
   }
 
   try {
-    if (!TWO_CAPTCHA_API_KEY) {
-      throw new Error('TWO_CAPTCHA_API_KEY non configurata nelle variabili Vercel');
-    }
+    if (!TWO_CAPTCHA_API_KEY) throw new Error('TWO_CAPTCHA_API_KEY non configurata');
 
-    // 1. Risolvi il captcha con 2Captcha
     const captchaToken = await getAsyncResponse({
       targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${RECAPTCHA_SITE_KEY}&pageurl=https://costikm.aci.it/`,
       statusUrl: (id) => `https://2captcha.com/res.php?key=${TWO_CAPTCHA_API_KEY}&action=get&id=${id}&json=1`,
@@ -139,13 +179,12 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
       maxAttempts: 80
     });
 
-    // 2. POST /captcha/verify
     const verifyRes = await fetch(`${ACI_API}/captcha/verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Origin': ACI_WEB,
-        'Referer': `${ACI_WEB}/`,
+        Origin: ACI_WEB,
+        Referer: `${ACI_WEB}/`,
       },
       body: JSON.stringify({ data: captchaToken })
     });
@@ -155,7 +194,6 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     const setCookieLines = verifyRes.headers.getSetCookie?.() || [];
     const cookieHeader = cookieHeaderFromSetCookieLines(setCookieLines);
 
-    // 3. GET /costs
     const costsUrl = new URL(`${ACI_API}/costs`);
     costsUrl.searchParams.set('date', date);
     costsUrl.searchParams.set('brandId', brandId);
@@ -169,9 +207,9 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
 
     const costsRes = await fetch(costsUrl.toString(), {
       headers: {
-        'Origin': ACI_WEB,
-        'Referer': `${ACI_WEB}/`,
-        'Cookie': cookieHeader,
+        Origin: ACI_WEB,
+        Referer: `${ACI_WEB}/`,
+        Cookie: cookieHeader,
       }
     });
 
@@ -192,6 +230,6 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
   } catch (error) {
     console.error(error);
     res.writeHead(500, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: error.message || 'Errore' }));
+    res.end(JSON.stringify({ error: error.message || 'Errore interno' }));
   }
 }
