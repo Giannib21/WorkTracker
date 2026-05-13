@@ -800,11 +800,11 @@ function sharedPortraitStyles(): string {
       .signHint { font-size: 10px; color: #374151; font-weight: 600; margin: 0 0 28px 0; }
       .footerNote { margin-top: 10px; font-size: 9px; color: #9ca3af; }
       .attSectionTitle { margin-top: 10px; margin-bottom: 8px; font-size: 11px; }
-      .attSection { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
-      .attCard { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fafafa; flex: 1 1 240px; max-width: 100%; box-sizing: border-box; }
-      .attCardHead { font-size: 8px; font-weight: 600; margin-bottom: 6px; color: #374151; }
-      .attImgWrap { text-align: center; }
-      .attImg { max-width: 100%; max-height: 300px; object-fit: contain; }
+      .attSection { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 12px; align-items: stretch; }
+      .attCard { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #fafafa; width: 100%; max-width: 100%; box-sizing: border-box; flex: 0 0 auto; }
+      .attCardHead { font-size: 8px; font-weight: 600; margin-bottom: 8px; color: #374151; }
+      .attImgWrap { text-align: center; width: 100%; }
+      .attImg { width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block; margin: 0 auto; }
       .attNote { font-size: 8px; color: #6b7280; margin: 0; line-height: 1.35; }
       .kmLetterBox {
         border: 1px solid #e5e7eb;
