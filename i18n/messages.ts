@@ -98,6 +98,29 @@ export type Messages = {
   settingsEurPerKm: string;
   settingsDecimalHint: string;
   settingsAciPhase2Hint: string;
+  aciWizardTitle: string;
+  aciWizardIntro: string;
+  aciWizardWebCorsHint: string;
+  aciWizardLoadBrands: string;
+  aciWizardSelectBrand: string;
+  aciWizardSelectFuel: string;
+  aciWizardSelectModel: string;
+  aciWizardPickPlaceholder: string;
+  aciWizardDateLabel: string;
+  aciWizardNetAmount: string;
+  aciWizardReset: string;
+  aciWizardErrGeneric: string;
+  aciWizardErrIncomplete: string;
+  aciWizardOpenOfficialCalculator: string;
+  aciWizardCopySelectionSummary: string;
+  aciWizardCopySelectionDone: string;
+  aciWizardCopySelectionNeedSelection: string;
+  aciWizardCopyLabelBrand: string;
+  aciWizardCopyLabelFuel: string;
+  aciWizardCopyLabelModel: string;
+  aciWizardCopyLabelDate: string;
+  aciWizardCopyLabelVatNet: string;
+  aciWizardCopyLabelVatGross: string;
   settingsSaveButton: string;
   settingsSavedTitle: string;
   settingsSavedBody: string;
@@ -311,7 +334,32 @@ const IT: Messages = {
   settingsCarModel: 'Modello auto',
   settingsEurPerKm: '€/km (decimale)',
   settingsDecimalHint: 'Usa virgola o punto per i decimali (es. 0,35 €/km).',
-  settingsAciPhase2Hint: 'Fase 2: aggiornamento automatico da ACI (per ora aggiornamento manuale).',
+  settingsAciPhase2Hint: 'Fase 2: aggiornamento automatico da ACI (per ora inserimento manuale del €/km).',
+  aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
+  aciWizardIntro:
+    'Carica marche, carburante e modello (elenchi pubblici ACI). Il valore €/km ufficiale va preso solo dal calcolatore sul sito: copia il riepilogo qui sotto e incollalo lì, poi trascrivi il €/km nel campo sopra in Profilo.',
+  aciWizardWebCorsHint:
+    'Su browser le chiamate al catalogo possono essere bloccate da CORS: imposta EXPO_PUBLIC_ACI_PROXY_URL verso il tuo `/api/aci-proxy` (solo `/vehicles/*`). Su app native di solito non serve.',
+  aciWizardLoadBrands: 'Carica marche',
+  aciWizardSelectBrand: 'Marca',
+  aciWizardSelectFuel: 'Carburante',
+  aciWizardSelectModel: 'Modello',
+  aciWizardPickPlaceholder: 'Scegli…',
+  aciWizardDateLabel: 'Data (GG-MM-AAAA)',
+  aciWizardNetAmount: 'Importo netto (IVA esclusa)',
+  aciWizardReset: 'Azzera selezione',
+  aciWizardErrGeneric: 'Richiesta non riuscita.',
+  aciWizardErrIncomplete: 'Seleziona marca, carburante e modello.',
+  aciWizardOpenOfficialCalculator: 'Apri calcolo ufficiale ACI',
+  aciWizardCopySelectionSummary: 'Copia riepilogo per il sito',
+  aciWizardCopySelectionDone: 'Riepilogo copiato negli appunti.',
+  aciWizardCopySelectionNeedSelection: 'Scegli prima marca, carburante e modello.',
+  aciWizardCopyLabelBrand: 'Marca',
+  aciWizardCopyLabelFuel: 'Carburante',
+  aciWizardCopyLabelModel: 'Modello',
+  aciWizardCopyLabelDate: 'Data riferimento',
+  aciWizardCopyLabelVatNet: 'Importo netto (IVA esclusa)',
+  aciWizardCopyLabelVatGross: 'Importo lordo',
   settingsSaveButton: 'Salva impostazioni',
   settingsSavedTitle: 'Salvato',
   settingsSavedBody: 'Impostazioni aggiornate.',
@@ -528,7 +576,32 @@ const EN: Messages = {
   settingsCarModel: 'Car model',
   settingsEurPerKm: '€/km (decimal)',
   settingsDecimalHint: 'Use comma or dot for decimals (e.g. 0.35 €/km).',
-  settingsAciPhase2Hint: 'Phase 2: automatic ACI rate updates (manual for now).',
+  settingsAciPhase2Hint: 'Phase 2: automatic ACI rate updates (manual €/km entry for now).',
+  aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
+  aciWizardIntro:
+    'Load brand, fuel and model (public ACI lists). The official €/km must be taken only from the website calculator: copy the summary below into the site, then type the €/km into the field above on this screen.',
+  aciWizardWebCorsHint:
+    'In the browser, catalog requests may be blocked by CORS: set EXPO_PUBLIC_ACI_PROXY_URL to your `/api/aci-proxy` (vehicles paths only). Native apps usually work without it.',
+  aciWizardLoadBrands: 'Load brands',
+  aciWizardSelectBrand: 'Brand',
+  aciWizardSelectFuel: 'Fuel',
+  aciWizardSelectModel: 'Model',
+  aciWizardPickPlaceholder: 'Choose…',
+  aciWizardDateLabel: 'Date (DD-MM-YYYY)',
+  aciWizardNetAmount: 'Net amount (excl. VAT)',
+  aciWizardReset: 'Clear selection',
+  aciWizardErrGeneric: 'Request failed.',
+  aciWizardErrIncomplete: 'Select brand, fuel, and model.',
+  aciWizardOpenOfficialCalculator: 'Open official ACI calculator',
+  aciWizardCopySelectionSummary: 'Copy summary for the website',
+  aciWizardCopySelectionDone: 'Summary copied to clipboard.',
+  aciWizardCopySelectionNeedSelection: 'Choose brand, fuel and model first.',
+  aciWizardCopyLabelBrand: 'Brand',
+  aciWizardCopyLabelFuel: 'Fuel',
+  aciWizardCopyLabelModel: 'Model',
+  aciWizardCopyLabelDate: 'Reference date',
+  aciWizardCopyLabelVatNet: 'Net amount (excl. VAT)',
+  aciWizardCopyLabelVatGross: 'Gross amount',
   settingsSaveButton: 'Save settings',
   settingsSavedTitle: 'Saved',
   settingsSavedBody: 'Settings updated.',

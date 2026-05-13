@@ -4,6 +4,7 @@ import { Button, Card, Divider, Text, TextInput, useTheme } from 'react-native-p
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
+import { AciCostikmProfileSection } from '../../../components/AciCostikmProfileSection';
 import { useAppLocale } from '../../../context/AppLocaleContext';
 import { getImpostazioniAll, setImpostazione } from '../../../db/database';
 import { COMPANY_LOCKED } from '../../../utils/companyInfo';
@@ -147,6 +148,8 @@ export default function ProfiloTab() {
           <Text style={{ opacity: 0.7 }}>{messages.settingsAciPhase2Hint}</Text>
         </Card.Content>
       </Card>
+
+      <AciCostikmProfileSection disabled={loading || saving} />
 
       <Button mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
         {messages.profileSaveButton}
