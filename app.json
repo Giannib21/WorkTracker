@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "WorkTracker",
+    "slug": "WorkTracker",
+    "version": "1.1.1",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "worktracker",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#522eb4"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#522eb4"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": ["android.permission.RECORD_AUDIO"],
+      "blockedPermissions": ["android.permission.ACTIVITY_RECOGNITION"]
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-mail-composer",
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "WorkTracker può accedere alle foto per allegare ricevute alle spese.",
+          "cameraPermission": "WorkTracker può usare la fotocamera per fotografare ricevute e allegarle alle spese."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "22bdd0bc-679a-4633-959d-9cbfaa407836"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/22bdd0bc-679a-4633-959d-9cbfaa407836"
+    }
+  }
+}
