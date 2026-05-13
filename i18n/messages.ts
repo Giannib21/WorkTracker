@@ -129,6 +129,10 @@ export type Messages = {
   aciWizardResultTitle: string;
   aciWizardApplyRate: string;
   aciWizardKmBandsHint: string;
+  aciWizardAnnualKmLabel: string;
+  aciWizardAnnualKmHelper: string;
+  aciWizardSuggestedBandLine: (userKm: number, bandKm: number, eurPerKm: string) => string;
+  aciWizardApplySuggestedBand: string;
   settingsSaveButton: string;
   settingsSavedTitle: string;
   settingsSavedBody: string;
@@ -377,7 +381,14 @@ const IT: Messages = {
   aciWizardSessionExpired: 'Sessione non valida (401). Riprova più tardi o verifica il proxy.',
   aciWizardResultTitle: 'Risposta',
   aciWizardApplyRate: 'Applica al campo €/km',
-  aciWizardKmBandsHint: 'Se il JSON contiene più fasce km, scegli un valore qui sotto.',
+  aciWizardKmBandsHint:
+    'La risposta può contenere più valori €/km (fasce km/anno): scegli la riga adatta oppure indica i km annui qui sotto per un suggerimento.',
+  aciWizardAnnualKmLabel: 'Km annui stimati (opzionale)',
+  aciWizardAnnualKmHelper:
+    "L'API ACI restituisce di solito l'intera tabella per il veicolo; non è obbligatorio passare i km nella richiesta. Qui puoi inserire i tuoi km annui per evidenziare la fascia più plausibile.",
+  aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
+    `Con circa ${userKm} km annui stimati, fascia indicativa: fino a ${bandKm} km/anno (${eurPerKm} €/km).`,
+  aciWizardApplySuggestedBand: 'Applica fascia suggerita',
   settingsSaveButton: 'Salva impostazioni',
   settingsSavedTitle: 'Salvato',
   settingsSavedBody: 'Impostazioni aggiornate.',
@@ -629,7 +640,14 @@ const EN: Messages = {
   aciWizardSessionExpired: 'Invalid session (401). Retry later or check the proxy.',
   aciWizardResultTitle: 'Response',
   aciWizardApplyRate: 'Apply to €/km field',
-  aciWizardKmBandsHint: 'If the JSON contains multiple km bands, pick a value below.',
+  aciWizardKmBandsHint:
+    'The response may include several €/km values (annual km bands): pick the right row, or enter your annual km below for a suggestion.',
+  aciWizardAnnualKmLabel: 'Estimated annual km (optional)',
+  aciWizardAnnualKmHelper:
+    'The ACI API usually returns the full table for the vehicle; annual km is not required on the request. Enter yours here to highlight the most plausible band.',
+  aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
+    `For about ${userKm} annual km, suggested band: up to ${bandKm} km/year (${eurPerKm} €/km).`,
+  aciWizardApplySuggestedBand: 'Apply suggested band',
   settingsSaveButton: 'Save settings',
   settingsSavedTitle: 'Saved',
   settingsSavedBody: 'Settings updated.',

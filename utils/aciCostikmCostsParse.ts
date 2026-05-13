@@ -44,7 +44,7 @@ function parseFlexibleNumber(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseKmAnnual(v: unknown): number | null {
+export function parseKmAnnual(v: unknown): number | null {
   const n = parseFlexibleNumber(v);
   if (n == null || !Number.isFinite(n)) return null;
   if (n >= 500 && n <= 500_000) return Math.round(n);
@@ -121,6 +121,20 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
   walk(data, 0);
   bands.sort((a, b) => a.km - b.km);
   return bands;
+}
+
+/**
+ * Sceglie la fascia €/km più coerente con i km annui dichiarati, usando le soglie da {@link extractCostKmBands}.
+ */
+export function suggestCostKmBandForAnnualKm(bands: AciCostKmBand[], annualKm: number): AciCostKmBand | null {
+  if (!bands.length || !Number.isFinite(annualKm) || annualKm < 0) return null;
+  const sorted = [...bands].sort((a, b) => a.km - b.km);
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  if (annualKm <= first.km) return first;
+  const hit = sorted.find((b) => annualKm <= b.km);
+  if (hit) return hit;
+  return last;
 }
 
 export function extractEurPerKmBandOptions(data: unknown): { label: string; value: string }[] {

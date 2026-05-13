@@ -103,15 +103,29 @@ async function getAsyncResponse(options) {
   throw new Error(`getAsyncResponse: timeout dopo ${maxAttempts} tentativi`);
 }
 
-function cookieHeaderFromSetCookieLines(setCookieLines) {
-  const parts = [];
-  for (const line of setCookieLines) {
-    const pair = line.split(';')[0]?.trim();
-    if (pair && pair.includes('=')) {
-      parts.push(pair);
+function cookiePairFromSetCookieLine(line) {
+  const pair = line.split(';')[0]?.trim();
+  if (!pair || !pair.includes('=')) return null;
+  const eq = pair.indexOf('=');
+  const name = pair.slice(0, eq).trim();
+  if (!name) return null;
+  return { name, pair };
+}
+
+/** Accumula `name=value` per header `Cookie` (ultimo valore vince su stesso nome). */
+class CookieJar {
+  constructor() {
+    this.map = new Map();
+  }
+  mergeFromHeaders(headers) {
+    for (const line of setCookieLinesFromHeaders(headers)) {
+      const p = cookiePairFromSetCookieLine(line);
+      if (p) this.map.set(p.name, p.pair);
     }
   }
-  return parts.join('; ');
+  toHeaderString() {
+    return Array.from(this.map.values()).join('; ');
+  }
 }
 
 /** Righe Set-Cookie: preferisci getSetCookie(); altrimenti splitta header unico (Node fetch). */
@@ -128,7 +142,27 @@ function setCookieLinesFromHeaders(headers) {
     .filter(Boolean);
 }
 
-/** JWT / bearer restituito da POST /captcha/verify (stesse chiavi tipiche del client Angular). */
+const JWT_LIKE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+function findJwtStringDeep(node, depth) {
+  if (depth > 14 || node == null) return null;
+  if (typeof node === 'string' && node.length > 50 && JWT_LIKE.test(node)) return node;
+  if (typeof node !== 'object') return null;
+  if (Array.isArray(node)) {
+    for (const x of node) {
+      const f = findJwtStringDeep(x, depth + 1);
+      if (f) return f;
+    }
+    return null;
+  }
+  for (const v of Object.values(node)) {
+    const f = findJwtStringDeep(v, depth + 1);
+    if (f) return f;
+  }
+  return null;
+}
+
+/** JWT / bearer da POST /captcha/verify (chiavi note + ricerca JWT annidata). */
 function extractBearerFromVerifyResponse(verifyRes, bodyText) {
   const authHdr = verifyRes.headers.get('authorization') || verifyRes.headers.get('Authorization');
   if (authHdr && /^Bearer\s+\S+/i.test(authHdr)) {
@@ -149,7 +183,7 @@ function extractBearerFromVerifyResponse(verifyRes, bodyText) {
   } catch {
     return null;
   }
-  const keys = ['token', 'access_token', 'accessToken', 'id_token', 'jwt'];
+  const keys = ['token', 'access_token', 'accessToken', 'id_token', 'jwt', 'accessTokenJwt', 'idToken'];
   function fromObj(o) {
     if (!o || typeof o !== 'object') return null;
     for (const k of keys) {
@@ -169,7 +203,8 @@ function extractBearerFromVerifyResponse(verifyRes, bodyText) {
     b = fromObj(obj.result);
     if (b) return b;
   }
-  return null;
+  b = findJwtStringDeep(obj, 0);
+  return b || null;
 }
 // =============================================================================
 
@@ -291,6 +326,18 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
   try {
     if (!TWO_CAPTCHA_API_KEY) throw new Error('TWO_CAPTCHA_API_KEY non configurata');
 
+    const jar = new CookieJar();
+    const warmRes = await fetch(`${ACI_WEB}/`, {
+      method: 'GET',
+      redirect: 'follow',
+      headers: {
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': ACI_BROWSER_UA,
+        Referer: `${ACI_WEB}/`,
+      },
+    });
+    jar.mergeFromHeaders(warmRes.headers);
+
     const captchaToken = await getAsyncResponse({
       targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${encodeURIComponent(
         RECAPTCHA_SITE_KEY,
@@ -300,6 +347,7 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
       maxAttempts: 80
     });
 
+    const preVerifyCookie = jar.toHeaderString();
     const verifyRes = await fetch(`${ACI_API}/captcha/verify`, {
       method: 'POST',
       headers: {
@@ -308,16 +356,20 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
         Origin: ACI_WEB,
         Referer: `${ACI_WEB}/`,
         'User-Agent': ACI_BROWSER_UA,
+        ...(preVerifyCookie ? { Cookie: preVerifyCookie } : {}),
       },
       body: JSON.stringify({ data: captchaToken })
     });
 
-    if (!verifyRes.ok) throw new Error(`Verify fallita: ${verifyRes.status}`);
+    if (!verifyRes.ok) {
+      const errTxt = await verifyRes.text().catch(() => '');
+      throw new Error(`Verify fallita: ${verifyRes.status} ${errTxt.slice(0, 240)}`);
+    }
 
-    const setCookieLines = setCookieLinesFromHeaders(verifyRes.headers);
-    const cookieHeader = cookieHeaderFromSetCookieLines(setCookieLines);
+    jar.mergeFromHeaders(verifyRes.headers);
     const verifyBodyText = await verifyRes.text();
     const bearerFromVerify = extractBearerFromVerifyResponse(verifyRes, verifyBodyText);
+    const cookieHeader = jar.toHeaderString();
 
     const vat =
       vatRaw === 1 || vatRaw === '1' || vatRaw === true ? 1 : 0;
@@ -356,11 +408,19 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     if (!costsRes.ok) {
       if ([401, 403].includes(costsRes.status)) {
         const costsErrText = await costsRes.text().catch(() => '');
+        let verifyKeys = null;
+        try {
+          const j = JSON.parse(verifyBodyText);
+          if (j && typeof j === 'object' && !Array.isArray(j)) verifyKeys = Object.keys(j);
+        } catch {
+          /* ignore */
+        }
         console.error('aci-proxy /costs rejected', {
           status: costsRes.status,
           hasBearer: Boolean(bearerFromVerify),
           cookieHeaderLen: cookieHeader.length,
           verifyBodyLen: verifyBodyText.length,
+          verifyKeys,
           costsBodyPreview: costsErrText.slice(0, 400),
         });
         res.writeHead(401, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });

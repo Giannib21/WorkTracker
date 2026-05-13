@@ -28,7 +28,13 @@ import {
   type AciFuel,
   type AciModel,
 } from '../utils/aciCostikmClient';
-import { extractEurPerKmBandOptions, extractSuggestedEurPerKmFromCosts } from '../utils/aciCostikmCostsParse';
+import {
+  extractCostKmBands,
+  extractEurPerKmBandOptions,
+  extractSuggestedEurPerKmFromCosts,
+  parseKmAnnual,
+  suggestCostKmBandForAnnualKm,
+} from '../utils/aciCostikmCostsParse';
 import { aciModelsListTimestampMs } from '../utils/aciCostikmTimestamp';
 import { sanitizeDecimalTyping } from '../utils/decimalInput';
 
@@ -64,8 +70,24 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
   const [resultJson, setResultJson] = useState<string | null>(null);
   const [suggestedEur, setSuggestedEur] = useState<string | null>(null);
   const [eurBands, setEurBands] = useState<{ label: string; value: string }[]>([]);
+  const [annualKmInput, setAnnualKmInput] = useState('');
 
   const busy = disabled || loadingBrands || loadingFuels || loadingModels || calculating;
+
+  const annualKmSuggestion = useMemo(() => {
+    const u = parseKmAnnual(annualKmInput.trim() || null);
+    if (u == null || !resultJson) return null;
+    let data: unknown;
+    try {
+      data = JSON.parse(resultJson);
+    } catch {
+      return null;
+    }
+    const bands = extractCostKmBands(data);
+    const band = suggestCostKmBandForAnnualKm(bands, u);
+    if (!band) return null;
+    return { band, userKm: u };
+  }, [resultJson, annualKmInput]);
 
   const loadBrands = useCallback(async () => {
     setError(null);
@@ -152,6 +174,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
     setResultJson(null);
     setSuggestedEur(null);
     setEurBands([]);
+    setAnnualKmInput('');
   }
 
   async function onCopySelectionSummary(): Promise<void> {
@@ -349,6 +372,16 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
         <Text variant="bodySmall" style={{ opacity: 0.76 }}>
           {messages.aciWizardCostFetchBody}
         </Text>
+        <TextInput
+          label={messages.aciWizardAnnualKmLabel}
+          value={annualKmInput}
+          onChangeText={(t) => setAnnualKmInput(t.replace(/[^\d]/g, ''))}
+          disabled={busy || !model}
+          keyboardType="number-pad"
+        />
+        <Text variant="bodySmall" style={{ opacity: 0.7 }}>
+          {messages.aciWizardAnnualKmHelper}
+        </Text>
         <Button
           mode="contained-tonal"
           icon="cloud-download-outline"
@@ -390,6 +423,28 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
               <Text variant="bodySmall" style={{ opacity: 0.78 }}>
                 {messages.aciWizardKmBandsHint}
               </Text>
+            ) : null}
+            {annualKmSuggestion ? (
+              <View style={{ gap: 6 }}>
+                <Text variant="bodyMedium" style={{ opacity: 0.9 }}>
+                  {messages.aciWizardSuggestedBandLine(
+                    annualKmSuggestion.userKm,
+                    annualKmSuggestion.band.km,
+                    String(annualKmSuggestion.band.cost).replace('.', ','),
+                  )}
+                </Text>
+                <Button
+                  mode="contained"
+                  onPress={() =>
+                    onApplyEurPerKm(
+                      sanitizeDecimalTyping(String(annualKmSuggestion.band.cost).replace('.', ',')),
+                    )
+                  }
+                  disabled={busy}
+                >
+                  {messages.aciWizardApplySuggestedBand}
+                </Button>
+              </View>
             ) : null}
             {eurBands.length > 0
               ? eurBands.map((b, i) => (
