@@ -836,7 +836,7 @@ function sharedPortraitStyles(): string {
       .attCard { border: 1px solid #e5e7eb; border-radius: 8px; padding: 8px; background: #fafafa; flex: 1 1 240px; max-width: 100%; box-sizing: border-box; }
       .attCardHead { font-size: 8px; font-weight: 600; margin-bottom: 6px; color: #374151; }
       .attImgWrap { text-align: center; }
-      .attImg { max-width: 100%; max-height: 200px; object-fit: contain; }
+      .attImg { max-width: 100%; max-height: 300px; object-fit: contain; }
       .attNote { font-size: 8px; color: #6b7280; margin: 0; line-height: 1.35; }
       .kmLetterBox {
         border: 1px solid #e5e7eb;
