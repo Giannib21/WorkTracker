@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Bootstrap sessione ACI (CIE / SPID): browser visibile, login manuale, export `aci-session.json`.
+ * Preferisci `npm run aci:capture` (prompt INVIO + `importantKeys`): stesso file di default e allineato al proxy.
  *
  * Salva:
  * - Cookie Playwright (inclusi HttpOnly) per domini `.aci.it`

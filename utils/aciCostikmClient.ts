@@ -82,8 +82,14 @@ export async function fetchAciModels(
 
 export const ACI_ERROR_SESSION_EXPIRED = 'ACI_SESSION_EXPIRED';
 
+export const ACI_ERROR_KEYCLOAK_TOKEN_REQUIRED = 'ACI_KEYCLOAK_TOKEN_REQUIRED';
+
 export function isSessionExpiredError(message: string): boolean {
   return message === ACI_ERROR_SESSION_EXPIRED;
+}
+
+export function isKeycloakTokenRequiredError(message: string): boolean {
+  return message === ACI_ERROR_KEYCLOAK_TOKEN_REQUIRED;
 }
 
 export type AciProxyCalculateCostsParams = {
@@ -141,6 +147,15 @@ export async function fetchAciCostsViaProxyCalculate(params: AciProxyCalculateCo
 
   if (res.status === 401 && parsed && typeof parsed === 'object' && (parsed as { error?: string }).error === 'SESSION_EXPIRED') {
     throw new Error(ACI_ERROR_SESSION_EXPIRED);
+  }
+
+  if (
+    res.status === 403 &&
+    parsed &&
+    typeof parsed === 'object' &&
+    (parsed as { error?: string }).error === 'ACI_KEYCLOAK_TOKEN_REQUIRED'
+  ) {
+    throw new Error(ACI_ERROR_KEYCLOAK_TOKEN_REQUIRED);
   }
 
   if (!res.ok) {

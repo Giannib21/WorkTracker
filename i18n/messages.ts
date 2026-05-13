@@ -126,6 +126,7 @@ export type Messages = {
   aciWizardCostFetchButton: string;
   aciWizardCostFetchProxyRequired: string;
   aciWizardSessionExpired: string;
+  aciWizardKeycloakTokenRequired: string;
   aciWizardResultTitle: string;
   aciWizardApplyRate: string;
   aciWizardKmBandsHint: string;
@@ -379,6 +380,8 @@ const IT: Messages = {
   aciWizardCostFetchProxyRequired:
     'Imposta `EXPO_PUBLIC_ACI_PROXY_URL` verso il deploy che espone `aci-proxy` (e riavvia Metro) per abilitare il pulsante.',
   aciWizardSessionExpired: 'Sessione non valida (401). Riprova più tardi o verifica il proxy.',
+  aciWizardKeycloakTokenRequired:
+    "L'API ACI ha risposto 403: serve un JWT Keycloak sul proxy. Su Vercel imposta `ACI_COSTIKM_KEYCLOAK_TOKEN` con il valore di `localStorage.token` dopo login CIE/SPID su costikm.aci.it (es. `npm run aci:capture`), poi redeploy. Il solo captcha risolto non basta per `/costs` in produzione.",
   aciWizardResultTitle: 'Risposta',
   aciWizardApplyRate: 'Applica al campo €/km',
   aciWizardKmBandsHint:
@@ -638,6 +641,8 @@ const EN: Messages = {
   aciWizardCostFetchProxyRequired:
     'Set `EXPO_PUBLIC_ACI_PROXY_URL` to your `aci-proxy` deployment (and restart Metro) to enable the button.',
   aciWizardSessionExpired: 'Invalid session (401). Retry later or check the proxy.',
+  aciWizardKeycloakTokenRequired:
+    'The ACI API returned 403: the proxy needs a Keycloak JWT. On Vercel set `ACI_COSTIKM_KEYCLOAK_TOKEN` to your `localStorage.token` after logging in to costikm.aci.it (e.g. `npm run aci:capture`), then redeploy. A solved captcha alone is not enough for `/costs` in production.',
   aciWizardResultTitle: 'Response',
   aciWizardApplyRate: 'Apply to €/km field',
   aciWizardKmBandsHint:

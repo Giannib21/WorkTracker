@@ -1,5 +1,13 @@
 // api/aci-proxy.mjs
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { text } from 'node:stream/consumers';
+
+/** Directory di questo file (`api/`): usata per risolvere `scripts/aci/aci-session.json` in locale / `vercel dev`. */
+const __dirname = dirname(fileURLToPath(import.meta.url));
+/** Snapshot Playwright (`npm run aci:capture`). Su Vercel il file non è deployato: usa `ACI_SESSION_JSON`. */
+const ACI_SESSION_FILE = join(__dirname, '..', 'scripts', 'aci', 'aci-session.json');
 
 const ACI_API = 'https://costikm-api-v2.services.aci.it';
 const ACI_WEB = 'https://costikm.aci.it';
@@ -160,6 +168,21 @@ class CookieJar {
   toHeaderString() {
     return Array.from(this.map.values()).join('; ');
   }
+
+  /** Unisce coppie `name=value` da header `Cookie` (richieste HTTP), non da `Set-Cookie`. */
+  mergeFromRequestCookieHeader(header) {
+    if (!header || typeof header !== 'string') return;
+    for (const segment of header.split(';')) {
+      const t = segment.trim();
+      if (!t) continue;
+      const eq = t.indexOf('=');
+      if (eq === -1) continue;
+      const name = t.slice(0, eq).trim();
+      if (!name) continue;
+      const value = t.slice(eq + 1).trim();
+      this.map.set(name, `${name}=${value}`);
+    }
+  }
 }
 
 /** Righe Set-Cookie: preferisci getSetCookie(); altrimenti splitta header unico (Node fetch). */
@@ -177,6 +200,114 @@ function setCookieLinesFromHeaders(headers) {
 }
 
 const JWT_LIKE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+
+/** Domini cookie tipo `.aci.it` rispetto all’host della richiesta. */
+function cookieDomainMatchesRequestHost(host, cookieDomain) {
+  if (!cookieDomain || typeof cookieDomain !== 'string') return false;
+  const cd = cookieDomain.startsWith('.') ? cookieDomain.slice(1) : cookieDomain;
+  return host === cd || host.endsWith('.' + cd);
+}
+
+function cookiePathMatchesRequestPath(reqPath, cookiePath) {
+  const cp = typeof cookiePath === 'string' && cookiePath.startsWith('/') ? cookiePath : '/';
+  if (cp === '/') return true;
+  const base = cp.endsWith('/') ? cp.slice(0, -1) : cp;
+  return reqPath === base || reqPath.startsWith(`${base}/`);
+}
+
+/**
+ * Cookie Playwright (array in JSON) → header `Cookie` per `fetch(url)`.
+ * Filtra per dominio/path, scadenza e flag `secure`.
+ */
+function playwrightCookiesToRequestCookieHeader(cookies, targetUrl) {
+  let u;
+  try {
+    u = new URL(targetUrl);
+  } catch {
+    return '';
+  }
+  const host = u.hostname;
+  const reqPath = u.pathname || '/';
+  const https = u.protocol === 'https:';
+  const nowSec = Date.now() / 1000;
+  const map = new Map();
+  if (!Array.isArray(cookies)) return '';
+  for (const c of cookies) {
+    if (!c || typeof c.name !== 'string' || c.value == null || String(c.name) === '') continue;
+    const expires = c.expires;
+    if (typeof expires === 'number' && expires > 0 && expires < nowSec) continue;
+    if (!cookieDomainMatchesRequestHost(host, c.domain)) continue;
+    if (!cookiePathMatchesRequestPath(reqPath, typeof c.path === 'string' ? c.path : '/')) continue;
+    if (c.secure === true && !https) continue;
+    map.set(c.name, `${c.name}=${String(c.value)}`);
+  }
+  return Array.from(map.values()).join('; ');
+}
+
+function bearerFromAciSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return null;
+  if (typeof snapshot.bearerToken === 'string' && snapshot.bearerToken.trim().length > 40) {
+    return snapshot.bearerToken.trim();
+  }
+  const ik = snapshot.importantKeys;
+  if (ik && typeof ik === 'object' && !Array.isArray(ik)) {
+    for (const k of ['token', 'access_token', 'accessToken', 'id_token']) {
+      const v = ik[k];
+      if (typeof v === 'string' && v.trim().length > 40) return v.trim();
+    }
+    for (const v of Object.values(ik)) {
+      if (typeof v === 'string' && v.length > 50 && JWT_LIKE.test(v)) return v.trim();
+    }
+  }
+  const ls = snapshot.localStorage;
+  if (ls && typeof ls === 'object' && !Array.isArray(ls)) {
+    for (const k of ['token', 'access_token', 'accessToken']) {
+      const v = ls[k];
+      if (typeof v === 'string' && v.trim().length > 40) return v.trim();
+    }
+  }
+  return null;
+}
+
+/** `exp` nel payload JWT (secondi Unix), o `null`. */
+function jwtExpiresAtUnixSec(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4;
+  if (pad) b64 += '='.repeat(4 - pad);
+  try {
+    const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
+    if (payload && typeof payload.exp === 'number' && Number.isFinite(payload.exp)) return payload.exp;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function isAciSnapshotJwtExpired(snapshot) {
+  const b = bearerFromAciSnapshot(snapshot);
+  if (!b) return false;
+  const exp = jwtExpiresAtUnixSec(b);
+  if (exp == null) return false;
+  return exp < Date.now() / 1000 + 120;
+}
+
+/**
+ * Sessione salvata da `npm run aci:capture` (`scripts/aci/aci-session.json`).
+ * Su Vercel: imposta `ACI_SESSION_JSON` con il JSON su una riga (il file non è nel deploy).
+ */
+function loadAciSessionSnapshotOrNull() {
+  const raw = process.env.ACI_SESSION_JSON;
+  if (typeof raw === 'string' && raw.trim() !== '') {
+    return JSON.parse(raw);
+  }
+  if (!existsSync(ACI_SESSION_FILE)) return null;
+  const txt = readFileSync(ACI_SESSION_FILE, 'utf8');
+  if (!txt.trim()) return null;
+  return JSON.parse(txt);
+}
 
 /** JWT eventualmente incastonato in un cookie HttpOnly (raro ma a costo zero da provare). */
 function extractJwtFromCookieHeader(cookieHeader) {
@@ -377,9 +508,71 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
   try {
     if (!TWO_CAPTCHA_API_KEY) throw new Error('TWO_CAPTCHA_API_KEY non configurata');
 
+    /** Sessione da `npm run aci:capture` (`ACI_SESSION_JSON` o file locale). */
+    let aciSessionSnapshot = null;
+    try {
+      aciSessionSnapshot = loadAciSessionSnapshotOrNull();
+    } catch (e) {
+      res.writeHead(500, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'ACI_SESSION_INVALID',
+          message:
+            'ACI_SESSION_JSON o scripts/aci/aci-session.json non sono JSON validi. Rigenera con npm run aci:capture.',
+          detail: String(e?.message || e),
+        }),
+      );
+      return;
+    }
+
+    /** Se "1", il calcolo costi richiede sempre una sessione catturata (file o env). */
+    if (process.env.ACI_REQUIRE_CAPTURED_SESSION === '1' && !aciSessionSnapshot) {
+      res.writeHead(401, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'SESSION_EXPIRED',
+          message:
+            'Sessione ACI non trovata. Esegui npm run aci:capture, poi imposta ACI_SESSION_JSON su Vercel oppure usa vercel dev con scripts/aci/aci-session.json.',
+        }),
+      );
+      return;
+    }
+
+    if (aciSessionSnapshot && isAciSnapshotJwtExpired(aciSessionSnapshot)) {
+      res.writeHead(401, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          error: 'SESSION_EXPIRED',
+          message:
+            'Il token Keycloak nella sessione salvata è scaduto. Esegui di nuovo npm run aci:capture e aggiorna ACI_SESSION_JSON o il file locale.',
+        }),
+      );
+      return;
+    }
+
+    const sessionBearer = bearerFromAciSnapshot(aciSessionSnapshot);
     const envBearer = optionalKeycloakBearer();
+    const preferBearer = sessionBearer || envBearer;
+
+    const recaptchaSiteKey =
+      (aciSessionSnapshot &&
+        typeof aciSessionSnapshot.apiCaptchaPublic === 'string' &&
+        aciSessionSnapshot.apiCaptchaPublic.trim()) ||
+      RECAPTCHA_SITE_KEY;
 
     const jar = new CookieJar();
+    if (aciSessionSnapshot?.cookies) {
+      jar.mergeFromRequestCookieHeader(
+        playwrightCookiesToRequestCookieHeader(aciSessionSnapshot.cookies, `${ACI_API}/captcha/verify`),
+      );
+      jar.mergeFromRequestCookieHeader(
+        playwrightCookiesToRequestCookieHeader(aciSessionSnapshot.cookies, `${ACI_WEB}/home`),
+      );
+      jar.mergeFromRequestCookieHeader(
+        playwrightCookiesToRequestCookieHeader(aciSessionSnapshot.cookies, `${ACI_WEB}/`),
+      );
+    }
+
     const warmRes = await fetch(`${ACI_WEB}/`, {
       method: 'GET',
       redirect: 'follow',
@@ -406,7 +599,7 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
 
     const captchaToken = await getAsyncResponse({
       targetUrl: `https://2captcha.com/in.php?key=${TWO_CAPTCHA_API_KEY}&method=userrecaptcha&googlekey=${encodeURIComponent(
-        RECAPTCHA_SITE_KEY,
+        recaptchaSiteKey,
       )}&pageurl=${encodeURIComponent('https://costikm.aci.it/')}&json=1`,
       statusUrl: (id) => `https://2captcha.com/res.php?key=${TWO_CAPTCHA_API_KEY}&action=get&id=${id}&json=1`,
       pollIntervalMs: 6000,
@@ -419,7 +612,7 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
       headers: aciApiBaseHeaders({
         'Content-Type': 'application/json',
         ...(preVerifyCookie ? { Cookie: preVerifyCookie } : {}),
-        ...(envBearer ? { Authorization: `Bearer ${envBearer}` } : {}),
+        ...(preferBearer ? { Authorization: `Bearer ${preferBearer}` } : {}),
       }),
       body: JSON.stringify({ data: captchaToken }),
     });
@@ -434,7 +627,7 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     const bearerFromVerify = extractBearerFromVerifyResponse(verifyRes, verifyBodyText);
     const cookieHeader = jar.toHeaderString();
     const bearerFromCookies = extractJwtFromCookieHeader(cookieHeader);
-    const bearerForCosts = bearerFromVerify || envBearer || bearerFromCookies;
+    const bearerForCosts = bearerFromVerify || preferBearer || bearerFromCookies;
 
     const vat =
       vatRaw === 1 || vatRaw === '1' || vatRaw === true ? 1 : 0;
@@ -483,7 +676,15 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
         console.error('aci-proxy /costs rejected', {
           status: costsRes.status,
           hasBearer: Boolean(bearerForCosts),
-          bearerSource: bearerFromVerify ? 'verify' : envBearer ? 'env' : bearerFromCookies ? 'cookie' : 'none',
+          bearerSource: bearerFromVerify
+            ? 'verify'
+            : sessionBearer
+              ? 'snapshot'
+              : envBearer
+                ? 'env'
+                : bearerFromCookies
+                  ? 'cookie'
+                  : 'none',
           hasXApplicationKey: true,
           cookieHeaderLen: cookieHeader.length,
           cookieNames,
@@ -491,6 +692,18 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
           verifyKeys,
           costsBodyPreview: costsErrText.slice(0, 400),
         });
+        /** In produzione `/costs` richiede spesso JWT Keycloak; il body verify è solo esito Google reCAPTCHA. */
+        if (costsRes.status === 403 && !bearerForCosts) {
+          res.writeHead(403, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              error: 'ACI_KEYCLOAK_TOKEN_REQUIRED',
+              hint:
+                'Imposta su Vercel la variabile ACI_COSTIKM_KEYCLOAK_TOKEN (JWT da costikm.aci.it dopo login CIE/SPID, stesso valore di localStorage.token). Rinnova il token periodicamente.',
+            }),
+          );
+          return;
+        }
         res.writeHead(401, { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'SESSION_EXPIRED' }));
         return;

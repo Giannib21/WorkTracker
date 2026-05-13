@@ -23,6 +23,7 @@ import {
   fetchAciCostsViaProxyCalculate,
   fetchAciFuels,
   fetchAciModels,
+  isKeycloakTokenRequiredError,
   isSessionExpiredError,
   type AciBrand,
   type AciFuel,
@@ -229,6 +230,8 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
       const raw = e instanceof Error ? e.message : '';
       if (raw === 'MISSING_ACI_PROXY') {
         setError(messages.aciWizardCostFetchProxyRequired);
+      } else if (isKeycloakTokenRequiredError(raw)) {
+        setError(messages.aciWizardKeycloakTokenRequired);
       } else if (isSessionExpiredError(raw)) {
         setError(messages.aciWizardSessionExpired);
       } else {
