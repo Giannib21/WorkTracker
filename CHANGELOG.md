@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.3] — 2026-05-14
+
+### Changed
+
+- Versione app e pacchetto portate a **2.2.3** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Profilo — Auto / rimborso km e ACI:** sezione ACI **accorpata** nella stessa card; in modalità **Automatico** il pulsante **«Apri calcolo ufficiale ACI»** è **nascosto** finché non c’è un **errore** nel wizard (in quel caso ricompare per consultare il calcolo ufficiale).
+- **Profilo — ACI:** countdown prima del recupero costo da **90** a **75** secondi.
+
 ## [2.2.2] — 2026-05-14
 
 ### Added
