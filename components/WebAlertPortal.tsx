@@ -28,16 +28,15 @@ export function WebAlertPortal() {
   const onDismiss = useCallback(() => {
     if (!top) return;
     const cancel = top.buttons.find((b) => b.style === 'cancel');
-    void Promise.resolve(cancel?.onPress?.()).finally(() => {
-      closeTop();
-    });
+    closeTop();
+    void Promise.resolve(cancel?.onPress?.());
   }, [top, closeTop]);
 
   const onButtonPress = useCallback(
     (b: WebAlertPayload['buttons'][0]) => {
-      void Promise.resolve(b.onPress?.()).finally(() => {
-        closeTop();
-      });
+      const fn = b.onPress;
+      closeTop();
+      if (fn) void Promise.resolve(fn()).catch(() => {});
     },
     [closeTop],
   );
@@ -48,7 +47,7 @@ export function WebAlertPortal() {
 
   return (
     <Portal>
-      <Dialog visible dismissable={top.options?.cancelable !== false} onDismiss={onDismiss}>
+      <Dialog visible={Boolean(top)} dismissable={top.options?.cancelable !== false} onDismiss={onDismiss}>
         <Dialog.Title>{top.title}</Dialog.Title>
         {top.message ? (
           <Dialog.ScrollArea style={styles.scrollArea}>
