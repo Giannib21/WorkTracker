@@ -1,5 +1,7 @@
 import { Linking, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+
+import { HapticButton } from './HapticButton';
 
 const DOCS_URL = 'https://docs.expo.dev/versions/latest/sdk/sqlite/';
 
@@ -30,9 +32,9 @@ export function WebSqliteBlockedScreen() {
             ? '• Serve the app over HTTPS on your network (TLS certificate on the dev server or reverse proxy).\n• Or use Expo Go / the native build on the phone.\n• For local testing, use http://localhost:8081 (or the port shown by Expo).'
             : '• Pubblica l’app in HTTPS sulla rete (certificato sul server di sviluppo o reverse proxy).\n• Oppure usa Expo Go / l’app nativa sul telefono.\n• In locale, usa http://localhost:8081 (o la porta indicata da Expo).'}
         </Text>
-        <Button mode="contained-tonal" onPress={() => void Linking.openURL(DOCS_URL)} style={styles.btn}>
+        <HapticButton mode="contained-tonal" onPress={() => void Linking.openURL(DOCS_URL)} style={styles.btn}>
           {en ? 'Expo SQLite docs' : 'Documentazione Expo SQLite'}
-        </Button>
+        </HapticButton>
       </View>
     </ScrollView>
   );

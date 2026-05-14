@@ -1,7 +1,10 @@
 import { addMonths, startOfMonth } from 'date-fns';
 import { useCallback, useEffect, useState } from 'react';
 import { LayoutChangeEvent, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, IconButton, Text } from 'react-native-paper';
+import { Card, Text } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
+import { HapticIconButton } from '../../../components/HapticIconButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -109,7 +112,8 @@ export default function HomeScreen() {
           accessibilityRole="header"
         >
           <View style={styles.navRow}>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-left"
               mode="outlined"
               size={22}
@@ -124,7 +128,8 @@ export default function HomeScreen() {
                 {formatD(currentMonth, 'yyyy')}
               </Text>
             </View>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-right"
               mode="outlined"
               size={22}
@@ -191,9 +196,9 @@ export default function HomeScreen() {
           </Card.Content>
         </Card>
 
-        <Button mode="outlined" icon="backup-restore" onPress={openResetMese} style={styles.resetFooter}>
+        <HapticButton mode="outlined" icon="backup-restore" onPress={openResetMese} style={styles.resetFooter}>
           {messages.reset}
-        </Button>
+        </HapticButton>
       </ScrollView>
     </View>
   );

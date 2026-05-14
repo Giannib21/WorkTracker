@@ -1,4 +1,4 @@
-// @ts-check
+// @ts-nocheck — mutazioni su `config.resolver` (assetExts, resolveRequest) non compatibili con i tipi readonly di Expo Metro.
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
 

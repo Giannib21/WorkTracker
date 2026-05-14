@@ -1,0 +1,32 @@
+import { forwardRef } from 'react';
+import { IconButton, type IconButtonProps } from 'react-native-paper';
+
+import { hapticButton, hapticSelection } from '../utils/haptics';
+
+type IconButtonRef = React.ComponentRef<typeof IconButton>;
+
+type Props = IconButtonProps & {
+  /** `light`: navigazione / controlli secondari (es. frecce mese). Default: pulsante più marcato. */
+  haptic?: 'button' | 'light';
+};
+
+/** Come `IconButton` di Paper, con feedback aptico su press (solo iOS/Android). */
+export const HapticIconButton = forwardRef<IconButtonRef, Props>(function HapticIconButton(
+  { haptic = 'button', onPressIn, ...rest },
+  ref,
+) {
+  return (
+    <IconButton
+      ref={ref}
+      {...rest}
+      onPressIn={(e) => {
+        if (haptic === 'light') {
+          hapticSelection();
+        } else {
+          hapticButton();
+        }
+        onPressIn?.(e);
+      }}
+    />
+  );
+});

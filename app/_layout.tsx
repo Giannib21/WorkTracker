@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, View } from 'react-native';
-import { Button, configureFonts, MD3LightTheme, PaperProvider, Text, type MD3Theme } from 'react-native-paper';
+import { configureFonts, MD3LightTheme, PaperProvider, Text, type MD3Theme } from 'react-native-paper';
 
+import { HapticButton } from '../components/HapticButton';
 import { WebSqliteBlockedScreen } from '../components/WebSqliteBlockedScreen';
 import { WebAlertPortal } from '../components/WebAlertPortal';
+import { WebPwaBootstrap } from '../components/WebPwaBootstrap';
 import { AppLocaleProvider } from '../context/AppLocaleContext';
 import { FloatingNumericKeyboardProvider } from '../components/FloatingNumericKeyboardProvider';
 import { initDb, resetDbConnection } from '../db/database';
@@ -98,48 +100,60 @@ export default function RootLayout() {
 
   if (boot.kind === 'loading') {
     return (
-      <PaperProvider theme={paperTheme}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={paperTheme.colors.primary} />
-        </View>
-      </PaperProvider>
+      <>
+        <WebPwaBootstrap />
+        <PaperProvider theme={paperTheme}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={paperTheme.colors.primary} />
+          </View>
+        </PaperProvider>
+      </>
     );
   }
 
   if (boot.kind === 'web_sqlite') {
     return (
-      <PaperProvider theme={paperTheme}>
-        <View style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
-          <WebSqliteBlockedScreen />
-        </View>
-      </PaperProvider>
+      <>
+        <WebPwaBootstrap />
+        <PaperProvider theme={paperTheme}>
+          <View style={{ flex: 1, backgroundColor: paperTheme.colors.background }}>
+            <WebSqliteBlockedScreen />
+          </View>
+        </PaperProvider>
+      </>
     );
   }
 
   if (boot.kind === 'db_error') {
     return (
-      <PaperProvider theme={paperTheme}>
-        <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 16 }}>
-          <Text variant="titleMedium">Database</Text>
-          <Text variant="bodyMedium" style={{ opacity: 0.85 }}>
-            {boot.message}
-          </Text>
-          <Button mode="contained" onPress={() => void runInit({ reset: true })}>
-            Riprova
-          </Button>
-        </View>
-      </PaperProvider>
+      <>
+        <WebPwaBootstrap />
+        <PaperProvider theme={paperTheme}>
+          <View style={{ flex: 1, justifyContent: 'center', padding: 24, gap: 16 }}>
+            <Text variant="titleMedium">Database</Text>
+            <Text variant="bodyMedium" style={{ opacity: 0.85 }}>
+              {boot.message}
+            </Text>
+            <HapticButton mode="contained" onPress={() => void runInit({ reset: true })}>
+              Riprova
+            </HapticButton>
+          </View>
+        </PaperProvider>
+      </>
     );
   }
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <WebAlertPortal />
-      <AppLocaleProvider>
-        <FloatingNumericKeyboardProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </FloatingNumericKeyboardProvider>
-      </AppLocaleProvider>
-    </PaperProvider>
+    <>
+      <WebPwaBootstrap />
+      <PaperProvider theme={paperTheme}>
+        <WebAlertPortal />
+        <AppLocaleProvider>
+          <FloatingNumericKeyboardProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </FloatingNumericKeyboardProvider>
+        </AppLocaleProvider>
+      </PaperProvider>
+    </>
   );
 }

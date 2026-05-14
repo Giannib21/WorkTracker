@@ -8,6 +8,7 @@ import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLocale } from '../context/AppLocaleContext';
+import { hapticButton, hapticSelection } from '../utils/haptics';
 
 const BAR_BORDER = 'rgba(15, 23, 42, 0.08)';
 const TAB_ICON_SIZE = 24;
@@ -91,6 +92,9 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
         accessibilityRole="button"
         accessibilityState={isFocused ? { selected: true } : {}}
         onPress={() => onTabPress(route, index)}
+        onPressIn={() => {
+          hapticSelection();
+        }}
         style={styles.tabSlot}
       >
         <View style={styles.tabInner}>
@@ -120,6 +124,9 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={messages.export}
+            onPressIn={() => {
+              hapticButton();
+            }}
             onPress={() => router.push('/export')}
             style={[
               styles.exportFab,

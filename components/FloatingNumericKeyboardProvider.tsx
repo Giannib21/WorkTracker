@@ -4,6 +4,7 @@ import { Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-nat
 import { useTheme } from 'react-native-paper';
 
 import { useAppLocale } from '../context/AppLocaleContext';
+import { hapticButton } from '../utils/haptics';
 import {
   registerFloatingNumericKeyboardLifecycle,
   type FloatingNumericLifecycle,
@@ -112,6 +113,9 @@ export function FloatingNumericKeyboardProvider({ children }: Props) {
             pointerEvents="auto"
           >
             <Pressable
+              onPressIn={() => {
+                hapticButton();
+              }}
               onPress={onDonePress}
               style={({ pressed }) => [
                 styles.btn,

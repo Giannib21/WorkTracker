@@ -3,7 +3,10 @@ import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import { Badge, Button, Card, Divider, IconButton, Switch, Text, TextInput } from 'react-native-paper';
+import { Badge, Card, Divider, Switch, Text, TextInput } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
+import { HapticIconButton } from '../../../components/HapticIconButton';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,6 +34,7 @@ import { labelCategoriaSpesa } from '../../../utils/expenseCategories';
 import { hoursFromNumber, parseHoursStateString, processHoursInput } from '../../../utils/halfHourHours';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { hapticSelection } from '../../../utils/haptics';
 import { appAlert } from '../../../utils/appAlert';
 
 /**
@@ -580,10 +584,11 @@ export default function GiornoDettaglio() {
       <Animated.View style={[styles.daySlideWrap, { transform: [{ translateX: daySlideX }] }]}>
         <View style={[styles.dayStickyHeader, { paddingTop: screenHeaderPaddingTop(insets.top) }]}>
           <View style={styles.header}>
-            <Button mode="text" onPress={() => router.back()}>
+            <HapticButton mode="text" onPress={() => router.back()}>
               {messages.exportBack}
-            </Button>
-            <IconButton
+            </HapticButton>
+            <HapticIconButton
+              haptic="light"
               icon="chevron-left"
               size={22}
               disabled={!prevDayYmd || Boolean(saving)}
@@ -596,7 +601,8 @@ export default function GiornoDettaglio() {
                 {dayLabel || data}
               </Text>
             </View>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-right"
               size={22}
               disabled={!nextDayYmd || Boolean(saving)}
@@ -664,7 +670,10 @@ export default function GiornoDettaglio() {
                   <Text style={styles.switchLabel}>{messages.dayTipoTrasfertaFull}</Text>
                   <Switch
                     value={tipo === 'trasferta'}
-                    onValueChange={(v) => onWorkdayKindChange(v ? 'trasferta' : 'lavoro')}
+                    onValueChange={(v) => {
+                      hapticSelection();
+                      onWorkdayKindChange(v ? 'trasferta' : 'lavoro');
+                    }}
                     disabled={Boolean(loading)}
                   />
                 </View>
@@ -685,9 +694,9 @@ export default function GiornoDettaglio() {
                   onChangeText={setLuogo}
                   disabled={Boolean(loading)}
                 />
-                <Button mode="outlined" onPress={useCurrentLocation} disabled={Boolean(loading)}>
+                <HapticButton mode="outlined" onPress={useCurrentLocation} disabled={Boolean(loading)}>
                   {messages.dayGpsShort}
-                </Button>
+                </HapticButton>
               </View>
               <TextInput
                 mode="outlined"
@@ -723,7 +732,10 @@ export default function GiornoDettaglio() {
                 <Text style={styles.switchLabel}>{messages.dayFerieInteraGiornata}</Text>
                 <Switch
                   value={tipo === 'ferie'}
-                  onValueChange={onFerieToggle}
+                  onValueChange={(v) => {
+                    hapticSelection();
+                    onFerieToggle(v);
+                  }}
                   disabled={Boolean(
                     loading ||
                       readonlyReason !== null ||
@@ -741,7 +753,10 @@ export default function GiornoDettaglio() {
               <Text style={styles.switchLabel}>{messages.dayMalattiaGiorno}</Text>
               <Switch
                 value={tipo === 'malattia'}
-                onValueChange={onMalattiaToggle}
+                onValueChange={(v) => {
+                  hapticSelection();
+                  onMalattiaToggle(v);
+                }}
                 disabled={Boolean(
                   loading ||
                     readonlyReason !== null ||
@@ -762,9 +777,9 @@ export default function GiornoDettaglio() {
             disabled={Boolean(readonlyReason !== null || loading)}
           />
 
-          <Button mode="contained" onPress={onSave} loading={Boolean(saving)} disabled={Boolean(loading || saving)}>
+          <HapticButton mode="contained" onPress={onSave} loading={Boolean(saving)} disabled={Boolean(loading || saving)}>
             {messages.daySalva}
-          </Button>
+          </HapticButton>
         </Card.Content>
       </Card>
 
@@ -783,7 +798,12 @@ export default function GiornoDettaglio() {
             <View style={{ gap: 8 }}>
               {spese.map((s) => (
                 <Link key={s.id} href={{ pathname: '/spesa/[id]', params: { id: String(s.id) } }} asChild>
-                  <Pressable style={styles.spesaRow}>
+                  <Pressable
+                    style={styles.spesaRow}
+                    onPressIn={() => {
+                      hapticSelection();
+                    }}
+                  >
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontWeight: '600' }}>
                         {labelCategoriaSpesa(s.tipo, language)} · € {s.importo.toFixed(2)}
@@ -800,14 +820,14 @@ export default function GiornoDettaglio() {
           )}
 
           <Link href={{ pathname: '/spesa/[id]', params: { id: 'new', data } }} asChild>
-            <Button mode="outlined">{messages.dayAggiungiSpesa}</Button>
+            <HapticButton mode="outlined">{messages.dayAggiungiSpesa}</HapticButton>
           </Link>
         </Card.Content>
       </Card>
 
-      <Button mode="outlined" onPress={openResetGiorno} disabled={Boolean(!data || !dateObj || loading)}>
+      <HapticButton mode="outlined" onPress={openResetGiorno} disabled={Boolean(!data || !dateObj || loading)}>
         {messages.resetDayButton}
-      </Button>
+      </HapticButton>
     </KeyboardSafeScroll>
       </Animated.View>
     </View>

@@ -2,7 +2,11 @@ import { addMonths, endOfMonth, format, parseISO, startOfMonth } from 'date-fns'
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Badge, Button, Card, Divider, IconButton, Text } from 'react-native-paper';
+import { Badge, Card, Divider, Text } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
+import { HapticIconButton } from '../../../components/HapticIconButton';
+import { hapticSelection } from '../../../utils/haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -149,7 +153,8 @@ export default function SpeseTab() {
           accessibilityRole="header"
         >
           <View style={styles.headerRow}>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-left"
               mode="outlined"
               size={22}
@@ -163,7 +168,8 @@ export default function SpeseTab() {
                 {rangeLabel}
               </Text>
             </View>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-right"
               mode="outlined"
               size={22}
@@ -209,7 +215,7 @@ export default function SpeseTab() {
       </Card>
 
       <Link href={{ pathname: '/spesa/[id]', params: { id: 'new', data: newDefaultDate } }} asChild>
-        <Button mode="contained">{messages.listSpeseNuova}</Button>
+        <HapticButton mode="contained">{messages.listSpeseNuova}</HapticButton>
       </Link>
 
       {groups.length === 0 ? (
@@ -233,7 +239,12 @@ export default function SpeseTab() {
                 <View style={{ gap: 8 }}>
                   {g.items.map((s) => (
                     <Link key={s.id} href={{ pathname: '/spesa/[id]', params: { id: String(s.id) } }} asChild>
-                      <Pressable style={styles.itemRow}>
+                      <Pressable
+                        style={styles.itemRow}
+                        onPressIn={() => {
+                          hapticSelection();
+                        }}
+                      >
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontWeight: '600' }}>
                             {labelCategoriaSpesa(s.tipo, language)} · € {s.importo.toFixed(2)}
@@ -253,9 +264,9 @@ export default function SpeseTab() {
         </View>
       )}
 
-      <Button mode="outlined" icon="backup-restore" onPress={openResetMese} style={styles.resetFooter}>
+      <HapticButton mode="outlined" icon="backup-restore" onPress={openResetMese} style={styles.resetFooter}>
         {messages.reset}
-      </Button>
+      </HapticButton>
       </ScrollView>
     </View>
   );

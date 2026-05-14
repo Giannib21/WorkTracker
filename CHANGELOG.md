@@ -8,6 +8,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-05-14
+
+### Added
+
+- **Haptics (iOS / Android):** `expo-haptics`, `utils/haptics.ts`, `HapticButton` / `HapticIconButton` (con `forwardRef` per `Link asChild`); feedback più marcato sui pulsanti e `selectionAsync` su tab, giorni calendario, liste, switch, wizard ACI, tastiera numerica «Fatto», FAB Export.
+- **Web PWA:** `public/manifest.json`, icone `pwa-192.png` / `pwa-512.png`, `public/sw.js` (pass-through, niente cache aggressiva), `WebPwaBootstrap` che inietta meta/manifest e registra lo SW solo fuori da dev/tunnel; niente `public/index.html` custom (evita pagina bianca con SSR Metro).
+- **Export web — email PDF:** dopo la generazione del PDF, dialog con «Condividi PDF» (Web Share API), «Apri email» (`mailto` con oggetto/corpo) e «Scarica PDF»; nuove stringhe i18n IT/EN.
+
+### Changed
+
+- Versione app e pacchetto portate a **2.1.0** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Profilo:** modalità **Manuale / Automatico** per modello auto e €/km (salvata in `profilo_car_cost_mode`); in automatico i campi sono disabilitati e compare solo la sezione ACI; pulsante calcolatore ufficiale sotto €/km con hint decimali.
+- **ACI:** countdown **90s** sul pulsante «Richiedi dati costo» durante l’attesa; testi UI snelliti (intro, titolo proxy, helper km annui).
+- **Tooling:** `eslint.config.js` — global Node per `api/` e `scripts/`; `metro.config.js` — `@ts-nocheck` per tipi Metro readonly.
+
+### Removed
+
+- Dipendenza **vexo-analytics** (non usata); `utils/getAsyncResponse.js` e `utils/cookieHeaderFromSetCookieLines.js` (non referenziati); chiavi i18n ACI non usate (`aciWizardSuggestedBandLine`, `aciWizardApplySuggestedBand`).
+
+### Fixed
+
+- **Web:** schermata bianca in dev legata al template `public/index.html` personalizzato; SW non registrato su localhost/LAN/tunnel Expo.
+- **Export web mobile:** `mailto` dopo `await` non partiva (popup bloccato); flusso sostituito dal dialog sopra.
+
 ## [2.0.0] — 2026-05-14
 
 ### Added

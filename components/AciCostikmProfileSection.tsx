@@ -1,9 +1,8 @@
 import { format } from 'date-fns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
-  Button,
   Card,
   Checkbox,
   Dialog,
@@ -15,6 +14,8 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
+
+import { HapticButton } from './HapticButton';
 
 import { useAppLocale } from '../context/AppLocaleContext';
 import {
@@ -37,10 +38,11 @@ import {
 } from '../utils/aciCostikmCostsParse';
 import { aciModelsListTimestampMs } from '../utils/aciCostikmTimestamp';
 import { sanitizeDecimalTyping } from '../utils/decimalInput';
+import { hapticSelection } from '../utils/haptics';
+
+const COST_FETCH_COUNTDOWN_START = 90;
 
 type PickerKind = 'brand' | 'fuel' | 'model' | null;
-
-const ACI_OFFICIAL_CALC_URL = 'https://costikm.aci.it/home';
 
 type Props = {
   disabled?: boolean;
@@ -74,6 +76,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
   const [eurBands, setEurBands] = useState<{ label: string; value: string }[]>([]);
   const [annualKmInput, setAnnualKmInput] = useState('');
   const [costFetchAck, setCostFetchAck] = useState(false);
+  const [costFetchCountdown, setCostFetchCountdown] = useState<number | null>(null);
 
   const applyEurRef = useRef(onApplyEurPerKm);
   applyEurRef.current = onApplyEurPerKm;
@@ -113,6 +116,17 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
   useEffect(() => {
     setCostFetchAck(false);
   }, [model?.id]);
+
+  useEffect(() => {
+    if (!calculating) {
+      setCostFetchCountdown(null);
+      return;
+    }
+    const id = setInterval(() => {
+      setCostFetchCountdown((c) => (c == null || c <= 0 ? 0 : c - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [calculating]);
 
   const loadBrands = useCallback(async () => {
     setError(null);
@@ -221,6 +235,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
     }
     setError(null);
     setCalculating(true);
+    setCostFetchCountdown(COST_FETCH_COUNTDOWN_START);
     setResultJson(null);
     setSuggestedEur(null);
     setEurBands([]);
@@ -263,6 +278,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
           key={b.id}
           title={b.name}
           onPress={() => {
+            hapticSelection();
             setBrand(b);
             setFuel(null);
             setModel(null);
@@ -277,6 +293,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
           key={f.id}
           title={f.name}
           onPress={() => {
+            hapticSelection();
             setFuel(f);
             setModel(null);
             setPicker(null);
@@ -291,6 +308,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
           title={m.name}
           description={m.classe_euro ? `Euro ${m.classe_euro}` : undefined}
           onPress={() => {
+            hapticSelection();
             if (brand && fuel) {
               setModel(m);
               applyVehicleDescription(brand, fuel, m);
@@ -320,9 +338,6 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
     <Card mode="outlined">
       <Card.Content style={{ gap: 10 }}>
         <Text variant="titleMedium">{messages.aciWizardTitle}</Text>
-        <Text variant="bodySmall" style={{ opacity: 0.78 }}>
-          {messages.aciWizardIntro}
-        </Text>
 
         <Divider />
 
@@ -333,40 +348,40 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
         ) : null}
 
         <View style={styles.row}>
-          <Button mode="contained-tonal" onPress={loadBrands} disabled={busy} loading={loadingBrands}>
+          <HapticButton mode="contained-tonal" onPress={loadBrands} disabled={busy} loading={loadingBrands}>
             {messages.aciWizardLoadBrands}
-          </Button>
-          <Button mode="outlined" onPress={resetAll} disabled={busy}>
+          </HapticButton>
+          <HapticButton mode="outlined" onPress={resetAll} disabled={busy}>
             {messages.aciWizardReset}
-          </Button>
+          </HapticButton>
         </View>
 
-        <Button
+        <HapticButton
           mode="outlined"
           onPress={() => setPicker('brand')}
           disabled={busy || brands.length === 0}
           icon="chevron-down"
         >
           {messages.aciWizardSelectBrand}: {brand?.name ?? messages.aciWizardPickPlaceholder}
-        </Button>
+        </HapticButton>
         {loadingFuels ? <ActivityIndicator /> : null}
-        <Button
+        <HapticButton
           mode="outlined"
           onPress={() => setPicker('fuel')}
           disabled={busy || !brand || fuels.length === 0}
           icon="chevron-down"
         >
           {messages.aciWizardSelectFuel}: {fuel?.name ?? messages.aciWizardPickPlaceholder}
-        </Button>
+        </HapticButton>
         {loadingModels ? <ActivityIndicator /> : null}
-        <Button
+        <HapticButton
           mode="outlined"
           onPress={() => setPicker('model')}
           disabled={busy || !fuel || models.length === 0}
           icon="chevron-down"
         >
           {messages.aciWizardSelectModel}: {model?.name ?? messages.aciWizardPickPlaceholder}
-        </Button>
+        </HapticButton>
 
         <TextInput
           label={messages.aciWizardDateLabel}
@@ -380,14 +395,18 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
           <Text variant="bodyMedium" style={{ flex: 1 }}>
             {messages.aciWizardNetAmount}
           </Text>
-          <Switch value={vatNet} onValueChange={setVatNet} disabled={busy} />
+          <Switch
+            value={vatNet}
+            onValueChange={(v) => {
+              hapticSelection();
+              setVatNet(v);
+            }}
+            disabled={busy}
+          />
         </View>
 
         <Divider />
 
-        <Text variant="titleSmall" style={{ opacity: 0.92 }}>
-          {messages.aciWizardCostFetchTitle}
-        </Text>
         <TextInput
           label={messages.aciWizardAnnualKmLabel}
           value={annualKmInput}
@@ -405,37 +424,29 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
           label={messages.aciWizardPersonalUseCheckbox}
           status={costFetchAck ? 'checked' : 'unchecked'}
           onPress={() => {
+            hapticSelection();
             if (!busy && model) setCostFetchAck((v) => !v);
           }}
           disabled={busy || !model}
           labelStyle={{ fontSize: 11, lineHeight: 15, opacity: 0.9 }}
         />
 
-        <Button
+        <HapticButton
           mode="contained-tonal"
           icon="cloud-download-outline"
           onPress={() => void onFetchCostsViaProxy()}
           disabled={busy || !model || !costFetchAck}
           loading={calculating}
         >
-          {messages.aciWizardCostFetchButton}
-        </Button>
+          {calculating && costFetchCountdown != null
+            ? `${messages.aciWizardCostFetchButton} (${costFetchCountdown}s)`
+            : messages.aciWizardCostFetchButton}
+        </HapticButton>
         {!proxyUrl ? (
           <Text variant="bodySmall" style={{ opacity: 0.65 }}>
             {messages.aciWizardCostFetchProxyRequired}
           </Text>
         ) : null}
-
-        <Divider />
-
-        <Button
-          mode="contained"
-          icon="open-in-new"
-          onPress={() => void Linking.openURL(ACI_OFFICIAL_CALC_URL)}
-          disabled={busy || !model}
-        >
-          {messages.aciWizardOpenOfficialCalculator}
-        </Button>
 
         {hasOutput ? (
           <View
@@ -501,6 +512,9 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
                   <Pressable
                     key={`${b.label}-${b.value}-${i}`}
                     accessibilityRole="button"
+                    onPressIn={() => {
+                      hapticSelection();
+                    }}
                     onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(b.value))}
                     disabled={busy}
                     android_ripple={{ color: theme.colors.primaryContainer }}
@@ -528,14 +542,14 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
             ) : null}
 
             {annualKmParsed == null && eurBands.length === 0 && suggestedEur ? (
-              <Button
+              <HapticButton
                 mode="contained"
                 style={{ marginTop: 12 }}
                 onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(suggestedEur))}
                 disabled={busy}
               >
                 {messages.aciWizardApplyRate} ({suggestedEur})
-              </Button>
+              </HapticButton>
             ) : null}
           </View>
         ) : null}
@@ -547,7 +561,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
               <ScrollView keyboardShouldPersistTaps="handled">{renderPickerItems()}</ScrollView>
             </Dialog.Content>
             <Dialog.Actions>
-              <Button onPress={() => setPicker(null)}>{messages.resetCancel}</Button>
+              <HapticButton onPress={() => setPicker(null)}>{messages.resetCancel}</HapticButton>
             </Dialog.Actions>
           </Dialog>
         </Portal>

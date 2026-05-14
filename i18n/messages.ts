@@ -18,8 +18,9 @@ export type Messages = {
   profileSavedTitle: string;
   profileSavedBody: string;
   profileSaveErr: string;
-  /** Testo prima del link al sito ACI costi km (Profilo). */
-  profileAciKmSourceIntro: string;
+  profileCarCostModeTitle: string;
+  profileCarCostModeManual: string;
+  profileCarCostModeAuto: string;
   homeTodayA11ySuffix: string;
   reset: string;
   export: string;
@@ -98,7 +99,6 @@ export type Messages = {
   settingsEurPerKm: string;
   settingsDecimalHint: string;
   aciWizardTitle: string;
-  aciWizardIntro: string;
   aciWizardLoadBrands: string;
   aciWizardSelectBrand: string;
   aciWizardSelectFuel: string;
@@ -110,7 +110,6 @@ export type Messages = {
   aciWizardErrGeneric: string;
   aciWizardErrIncomplete: string;
   aciWizardOpenOfficialCalculator: string;
-  aciWizardCostFetchTitle: string;
   aciWizardCostFetchButton: string;
   aciWizardCostFetchProxyRequired: string;
   aciWizardSessionExpired: string;
@@ -121,8 +120,6 @@ export type Messages = {
   aciWizardKmBandsHint: string;
   aciWizardAnnualKmLabel: string;
   aciWizardAnnualKmHelper: string;
-  aciWizardSuggestedBandLine: (userKm: number, bandKm: number, eurPerKm: string) => string;
-  aciWizardApplySuggestedBand: string;
   aciWizardEurPerKmAutoApplied: (userKm: number, bandKm: number, eurPerKm: string) => string;
   aciWizardBandsTableTitle: string;
   aciWizardBandsTableHint: string;
@@ -133,8 +130,14 @@ export type Messages = {
   settingsSavedBody: string;
   settingsSaveErr: string;
   exportMailUnavailable: string;
-  /** Web: dopo download PDF e apertura mailto, spiega di allegare il file manualmente. */
+  /** Web: flusso email PDF (mailto non allega file; vedi dialog export). */
   exportWebMailHint: string;
+  exportWebMailDialogTitle: string;
+  exportWebMailDialogBody: string;
+  exportWebMailSharePdf: string;
+  exportWebMailOpenMailApp: string;
+  exportWebMailDownloadPdf: string;
+  exportWebMailShareError: string;
   exportErrPdf: string;
   exportErrExcel: string;
   exportErrEmail: string;
@@ -255,7 +258,9 @@ const IT: Messages = {
   profileSavedTitle: 'Salvato',
   profileSavedBody: 'Dati collaboratore aggiornati.',
   profileSaveErr: 'Impossibile salvare i dati.',
-  profileAciKmSourceIntro: 'Per scaricare il valore €/km aggiornato:',
+  profileCarCostModeTitle: 'Modello e €/km',
+  profileCarCostModeManual: 'Manuale',
+  profileCarCostModeAuto: 'Automatico',
   homeTodayA11ySuffix: 'oggi',
   reset: 'Reset',
   export: 'Export',
@@ -342,8 +347,6 @@ const IT: Messages = {
   settingsEurPerKm: '€/km (decimale)',
   settingsDecimalHint: 'Usa virgola o punto per i decimali (es. 0,35 €/km).',
   aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
-  aciWizardIntro:
-    'Carica marche, carburante e modello dagli elenchi pubblici ACI. La stima €/km può essere richiesta qui sotto; in alternativa usa il calcolatore ufficiale e inserisci manualmente il valore nel campo €/km nella scheda Auto sopra.',
   aciWizardLoadBrands: 'Carica marche',
   aciWizardSelectBrand: 'Marca',
   aciWizardSelectFuel: 'Carburante',
@@ -355,7 +358,6 @@ const IT: Messages = {
   aciWizardErrGeneric: 'Richiesta non riuscita.',
   aciWizardErrIncomplete: 'Seleziona marca, carburante e modello.',
   aciWizardOpenOfficialCalculator: 'Apri calcolo ufficiale ACI',
-  aciWizardCostFetchTitle: 'Calcolo €/km (proxy didattico)',
   aciWizardCostFetchButton: 'Richiedi dati costo',
   aciWizardCostFetchProxyRequired:
     'Imposta `EXPO_PUBLIC_ACI_PROXY_URL` verso il deploy che espone `aci-proxy` (e riavvia Metro) per abilitare il pulsante.',
@@ -368,12 +370,9 @@ const IT: Messages = {
   aciWizardApplyRate: 'Applica al campo €/km',
   aciWizardKmBandsHint:
     'Se compaiono più fasce chilometriche, scegli quella adatta o indica i km annui per applicare automaticamente il €/km corretto.',
-  aciWizardAnnualKmLabel: 'Km annui stimati (opzionale)',
+  aciWizardAnnualKmLabel: 'stima km annui percorsi - (opzionale)',
   aciWizardAnnualKmHelper:
-    "L'API ACI restituisce di solito l'intera tabella per il veicolo; non è obbligatorio passare i km nella richiesta. Qui puoi inserire i tuoi km annui per evidenziare la fascia più plausibile.",
-  aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
-    `Con circa ${userKm} km annui stimati, fascia indicativa: fino a ${bandKm} km/anno (${eurPerKm} €/km).`,
-  aciWizardApplySuggestedBand: 'Applica fascia suggerita',
+    "Inserisci la stima dei km percorsi nell'anno per ottenere direttamente il costo €/km corretto. Diversamente, ti verrà mostrata l'intera tabella, quindi dovrai selezionare la fascia corretta.",
   aciWizardEurPerKmAutoApplied: (userKm, bandKm, eurPerKm) =>
     `Campo €/km aggiornato automaticamente: ${eurPerKm} €/km (fascia fino a ${bandKm} km/anno, in base ai ${userKm} km indicati).`,
   aciWizardBandsTableTitle: 'Fasce €/km dalla risposta',
@@ -387,7 +386,15 @@ const IT: Messages = {
   settingsSaveErr: 'Impossibile salvare le impostazioni.',
   exportMailUnavailable: 'Mail Composer non è disponibile su questo dispositivo.',
   exportWebMailHint:
-    'Su browser il PDF è stato scaricato. Si è aperta la mail: allega il file scaricato al messaggio.',
+    'Su web il PDF non può essere allegato automaticamente alla email. Usa il pulsante «Condividi PDF» dopo averlo generato.',
+  exportWebMailDialogTitle: 'PDF pronto',
+  exportWebMailDialogBody:
+    'I browser (soprattutto su telefono) non possono allegare un file a una email da soli. Tocca «Condividi PDF» per inviarlo con Mail, Gmail o altre app; oppure «Apri email» per aprire il programma di posta con oggetto e testo già compilati (il PDF va allegato dai download, se non usi Condividi).',
+  exportWebMailSharePdf: 'Condividi PDF',
+  exportWebMailOpenMailApp: 'Apri email (oggetto e testo)',
+  exportWebMailDownloadPdf: 'Scarica il PDF',
+  exportWebMailShareError:
+    'Questo browser non consente di condividere il PDF da qui. Usa «Scarica il PDF» e allegalo all’email.',
   exportErrPdf: 'Impossibile generare il PDF.',
   exportErrExcel: 'Impossibile generare il file Excel.',
   exportErrEmail: "Impossibile preparare l'email.",
@@ -511,7 +518,9 @@ const EN: Messages = {
   profileSavedTitle: 'Saved',
   profileSavedBody: 'Collaborator details updated.',
   profileSaveErr: 'Could not save details.',
-  profileAciKmSourceIntro: 'To download the current €/km rate:',
+  profileCarCostModeTitle: 'Car model and €/km',
+  profileCarCostModeManual: 'Manual',
+  profileCarCostModeAuto: 'Automatic',
   homeTodayA11ySuffix: 'today',
   reset: 'Reset',
   export: 'Export',
@@ -598,8 +607,6 @@ const EN: Messages = {
   settingsEurPerKm: '€/km (decimal)',
   settingsDecimalHint: 'Use comma or dot for decimals (e.g. 0.35 €/km).',
   aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
-  aciWizardIntro:
-    'Load brand, fuel and model from the public ACI lists. You can request an estimated €/km below, or use the official calculator and enter the value manually in the €/km field in the Car section above.',
   aciWizardLoadBrands: 'Load brands',
   aciWizardSelectBrand: 'Brand',
   aciWizardSelectFuel: 'Fuel',
@@ -611,7 +618,6 @@ const EN: Messages = {
   aciWizardErrGeneric: 'Request failed.',
   aciWizardErrIncomplete: 'Select brand, fuel, and model.',
   aciWizardOpenOfficialCalculator: 'Open official ACI calculator',
-  aciWizardCostFetchTitle: '€/km calculation (didactic proxy)',
   aciWizardCostFetchButton: 'Request cost data',
   aciWizardCostFetchProxyRequired:
     'Set `EXPO_PUBLIC_ACI_PROXY_URL` to your `aci-proxy` deployment (and restart Metro) to enable the button.',
@@ -624,12 +630,9 @@ const EN: Messages = {
   aciWizardApplyRate: 'Apply to €/km field',
   aciWizardKmBandsHint:
     'If several mileage bands appear, pick the right one or enter annual km to apply the matching €/km automatically.',
-  aciWizardAnnualKmLabel: 'Estimated annual km (optional)',
+  aciWizardAnnualKmLabel: 'Estimated annual km driven — (optional)',
   aciWizardAnnualKmHelper:
-    'The ACI API usually returns the full table for the vehicle; annual km is not required on the request. Enter yours here to highlight the most plausible band.',
-  aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
-    `For about ${userKm} annual km, suggested band: up to ${bandKm} km/year (${eurPerKm} €/km).`,
-  aciWizardApplySuggestedBand: 'Apply suggested band',
+    'Enter your estimate of km driven per year to get the correct €/km cost applied directly. Otherwise you will see the full table and must pick the right band yourself.',
   aciWizardEurPerKmAutoApplied: (userKm, bandKm, eurPerKm) =>
     `€/km field updated automatically: ${eurPerKm} €/km (band up to ${bandKm} km/year, from your ${userKm} km entered).`,
   aciWizardBandsTableTitle: '€/km bands from response',
@@ -643,7 +646,15 @@ const EN: Messages = {
   settingsSaveErr: 'Could not save settings.',
   exportMailUnavailable: 'Mail is not available on this device.',
   exportWebMailHint:
-    'In the browser the PDF was downloaded. Your email client should open—attach the downloaded file to the message.',
+    'On the web the PDF cannot be attached to email automatically. After generating it, use “Share PDF”.',
+  exportWebMailDialogTitle: 'PDF ready',
+  exportWebMailDialogBody:
+    'Browsers—especially on phones—cannot attach a file to an email by themselves. Tap “Share PDF” to send it via Mail, Gmail, or another app; or “Open email” to open your mail app with subject and body filled in (attach the PDF from Downloads if you did not use Share).',
+  exportWebMailSharePdf: 'Share PDF',
+  exportWebMailOpenMailApp: 'Open email (subject & body)',
+  exportWebMailDownloadPdf: 'Download PDF',
+  exportWebMailShareError:
+    'This browser cannot share the PDF from here. Use “Download PDF” and attach it manually.',
   exportErrPdf: 'Could not generate the PDF.',
   exportErrExcel: 'Could not generate the Excel file.',
   exportErrEmail: 'Could not prepare the email.',

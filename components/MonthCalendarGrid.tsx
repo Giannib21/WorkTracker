@@ -20,6 +20,7 @@ import {
   tipoToCalendarColor,
   ymdFromDate,
 } from '../utils/homeMonthCalendar';
+import { hapticSelection } from '../utils/haptics';
 
 const GRID_BORDER_OUTER = 'rgba(99, 102, 241, 0.24)';
 const GRID_BORDER_INNER = 'rgba(99, 102, 241, 0.14)';
@@ -114,6 +115,9 @@ export function MonthCalendarGrid({
                             ? `${c.dayNumber}, ${c.ymd}, ${messages.homeTodayA11ySuffix}`
                             : `${c.dayNumber}, ${c.ymd}`
                         }
+                        onPressIn={() => {
+                          hapticSelection();
+                        }}
                         onPress={() => router.push({ pathname: '/giorno/[data]', params: { data: c.ymd } })}
                         style={[
                           styles.cell,

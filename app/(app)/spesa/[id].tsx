@@ -5,7 +5,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Button, Card, Divider, Text, TextInput } from 'react-native-paper';
+import { Card, Divider, Text, TextInput } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
@@ -21,6 +23,7 @@ import {
   updateSpesa,
 } from '../../../db/database';
 import { mergeLuogoProgettoFromGiornoESpese } from '../../../utils/dayPlaceDefaults';
+import { hapticSelection } from '../../../utils/haptics';
 import { parseMoneyAmount, sanitizeDecimalTyping } from '../../../utils/decimalInput';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { speseUiGroups } from '../../../utils/expenseCategories';
@@ -383,9 +386,9 @@ export default function SpesaDettaglio() {
         accessibilityRole="header"
       >
         <View style={styles.header}>
-          <Button mode="text" onPress={() => router.back()}>
+          <HapticButton mode="text" onPress={() => router.back()}>
             {messages.exportBack}
-          </Button>
+          </HapticButton>
           <View style={{ flex: 1 }}>
             <Text variant="titleLarge">{isNew ? messages.expNewTitle : messages.expEditTitle}</Text>
             <Text style={{ opacity: 0.7 }}>{headerSubtitle}</Text>
@@ -418,6 +421,9 @@ export default function SpesaDettaglio() {
                     return (
                       <Pressable
                         key={c.value}
+                        onPressIn={() => {
+                          hapticSelection();
+                        }}
                         onPress={() => !loading && !saving && applyTipo(c.value)}
                         disabled={loading || saving}
                         style={({ pressed }) => [
@@ -453,14 +459,14 @@ export default function SpesaDettaglio() {
               onChangeText={setLocalita}
               disabled={loading || saving}
             />
-            <Button
+            <HapticButton
               mode="outlined"
               icon="map-marker"
               onPress={fillFromGps}
               disabled={loading || saving}
             >
               {messages.dayGpsShort}
-            </Button>
+            </HapticButton>
           </View>
           <TextInput
             mode="outlined"
@@ -556,20 +562,20 @@ export default function SpesaDettaglio() {
           <Text style={{ opacity: 0.65, fontSize: 13 }}>{messages.expDocHint}</Text>
           <View style={styles.rowWrap}>
             {Platform.OS !== 'web' ? (
-              <Button mode="outlined" icon="camera-outline" onPress={pickFromCamera} disabled={loading || saving || picking}>
+              <HapticButton mode="outlined" icon="camera-outline" onPress={pickFromCamera} disabled={loading || saving || picking}>
                 {messages.expFotocamera}
-              </Button>
+              </HapticButton>
             ) : null}
-            <Button mode="outlined" icon="image-outline" onPress={pickFromGallery} disabled={loading || saving || picking}>
+            <HapticButton mode="outlined" icon="image-outline" onPress={pickFromGallery} disabled={loading || saving || picking}>
               {messages.expGalleria}
-            </Button>
-            <Button mode="outlined" icon="file-document-outline" onPress={pickFromFiles} disabled={loading || saving || picking}>
+            </HapticButton>
+            <HapticButton mode="outlined" icon="file-document-outline" onPress={pickFromFiles} disabled={loading || saving || picking}>
               {messages.expFile}
-            </Button>
+            </HapticButton>
             {fotoPath ? (
-              <Button mode="text" onPress={removeAttachment} disabled={loading || saving || picking} textColor="#b91c1c">
+              <HapticButton mode="text" onPress={removeAttachment} disabled={loading || saving || picking} textColor="#b91c1c">
                 {messages.expRimuovi}
-              </Button>
+              </HapticButton>
             ) : null}
           </View>
           {fotoPath && isProbablyImagePath(fotoPath) ? (
@@ -580,14 +586,14 @@ export default function SpesaDettaglio() {
             </Text>
           ) : null}
 
-          <Button mode="contained" onPress={onSave} loading={saving} disabled={loading || saving || picking}>
+          <HapticButton mode="contained" onPress={onSave} loading={saving} disabled={loading || saving || picking}>
             {messages.daySalva}
-          </Button>
+          </HapticButton>
 
           {!isNew ? (
-            <Button mode="outlined" onPress={onDelete} disabled={loading || saving} textColor="#b91c1c">
+            <HapticButton mode="outlined" onPress={onDelete} disabled={loading || saving} textColor="#b91c1c">
               {messages.expEliminaSi}
-            </Button>
+            </HapticButton>
           ) : null}
         </Card.Content>
       </Card>

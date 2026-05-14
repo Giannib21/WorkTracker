@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Button, Card, Divider, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { Card, Divider, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
+import { hapticSelection } from '../../../utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
@@ -114,7 +117,10 @@ export default function ImpostazioniTab() {
           <View style={{ opacity: loading || saving ? 0.55 : 1 }} pointerEvents={loading || saving ? 'none' : 'auto'}>
             <SegmentedButtons
               value={appLanguage}
-              onValueChange={(v) => setAppLanguage(v as AppLanguage)}
+              onValueChange={(v) => {
+                hapticSelection();
+                setAppLanguage(v as AppLanguage);
+              }}
               buttons={[
                 { value: 'it', label: messages.settingsLanguageIt },
                 { value: 'en', label: messages.settingsLanguageEn },
@@ -160,7 +166,10 @@ export default function ImpostazioniTab() {
             <Text style={{ flex: 1, paddingRight: 12 }}>{messages.settingsLocalHolidaysSwitchLabel}</Text>
             <Switch
               value={festivitaLocaliAbilitate}
-              onValueChange={setFestivitaLocaliAbilitate}
+              onValueChange={(v) => {
+                hapticSelection();
+                setFestivitaLocaliAbilitate(v);
+              }}
               disabled={loading || saving}
             />
           </View>
@@ -195,9 +204,9 @@ export default function ImpostazioniTab() {
         </Card.Content>
       </Card>
 
-      <Button mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
+      <HapticButton mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
         {messages.settingsSaveButton}
-      </Button>
+      </HapticButton>
 
       <Card style={styles.aboutCard}>
         <Card.Content style={{ gap: 10 }}>

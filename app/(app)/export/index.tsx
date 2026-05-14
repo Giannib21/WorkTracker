@@ -1,8 +1,11 @@
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
-import { Button, Card, Dialog, Divider, IconButton, Portal, Text } from 'react-native-paper';
+import { Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
+
+import { HapticButton } from '../../../components/HapticButton';
+import { HapticIconButton } from '../../../components/HapticIconButton';
 import * as MailComposer from 'expo-mail-composer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,6 +31,12 @@ function monthHasExpenseAttachments(spese: { foto_path?: string | null }[]): boo
   return spese.some((s) => (s.foto_path ?? '').trim().length > 0);
 }
 
+type WebMailFollowUp = {
+  mailto: string;
+  uri: string;
+  filename: string;
+};
+
 export default function ExportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -37,6 +46,7 @@ export default function ExportScreen() {
   const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
   const [attachDialogOpen, setAttachDialogOpen] = useState(false);
   const [pendingScope, setPendingScope] = useState<PdfExportScope | null>(null);
+  const [webMailFollowUp, setWebMailFollowUp] = useState<WebMailFollowUp | null>(null);
   const pdfIntentRef = useRef<'share' | 'email'>('share');
   /** True se nel mese corrente c’è almeno uno scontrino/allegato su una spesa (stesso caricamento del dialog scopo). */
   const pdfMonthHasAttachmentsRef = useRef(false);
@@ -102,15 +112,11 @@ export default function ExportScreen() {
     attachmentName: string
   ): Promise<void> {
     if (Platform.OS === 'web') {
-      await shareFile(uri, attachmentName);
       const to = report.emailOfficeManager ? encodeURIComponent(report.emailOfficeManager) : '';
       const subject = encodeURIComponent(messages.exportMailSubject(title));
       const body = encodeURIComponent(messages.exportMailBody(title, report.nomeUtente ?? ''));
       const q = to ? `mailto:${to}?subject=${subject}&body=${body}` : `mailto:?subject=${subject}&body=${body}`;
-      if (typeof window !== 'undefined') {
-        window.open(q, '_blank', 'noopener,noreferrer');
-      }
-      appAlert(messages.exportTitle, messages.exportWebMailHint);
+      setWebMailFollowUp({ mailto: q, uri, filename: attachmentName });
       return;
     }
 
@@ -185,21 +191,72 @@ export default function ExportScreen() {
     }
   }
 
+  const dismissWebMailDialog = useCallback((revokeBlob: boolean) => {
+    setWebMailFollowUp((prev) => {
+      if (prev && revokeBlob && prev.uri.startsWith('blob:')) {
+        URL.revokeObjectURL(prev.uri);
+      }
+      return null;
+    });
+  }, []);
+
+  const onWebSharePdf = useCallback(async () => {
+    if (!webMailFollowUp || Platform.OS !== 'web') return;
+    if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+      appAlert(messages.errorTitle, messages.exportWebMailShareError);
+      return;
+    }
+    const { uri, filename } = webMailFollowUp;
+    setBusy(true);
+    try {
+      const res = await fetch(uri);
+      const blob = await res.blob();
+      const file = new File([blob], filename, { type: 'application/pdf' });
+      const data: ShareData = { files: [file] };
+      if (typeof navigator.canShare === 'function' && !navigator.canShare(data)) {
+        appAlert(messages.errorTitle, messages.exportWebMailShareError);
+        return;
+      }
+      await navigator.share(data);
+      dismissWebMailDialog(true);
+    } catch (e: unknown) {
+      const name = e && typeof e === 'object' && 'name' in e ? String((e as { name: string }).name) : '';
+      if (name !== 'AbortError') {
+        appAlert(messages.errorTitle, messages.exportWebMailShareError);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [webMailFollowUp, dismissWebMailDialog, messages]);
+
+  const onWebOpenMailto = useCallback(() => {
+    if (!webMailFollowUp || typeof window === 'undefined') return;
+    window.location.href = webMailFollowUp.mailto;
+    dismissWebMailDialog(false);
+  }, [webMailFollowUp, dismissWebMailDialog]);
+
+  const onWebDownloadPdf = useCallback(async () => {
+    if (!webMailFollowUp) return;
+    await shareFile(webMailFollowUp.uri, webMailFollowUp.filename);
+    setWebMailFollowUp(null);
+  }, [webMailFollowUp]);
+
   return (
     <KeyboardSafeScroll
       contentContainerStyle={[styles.page, { paddingTop: screenHeaderPaddingTop(insets.top) }]}
     >
       <View style={styles.topBar}>
-        <Button mode="text" onPress={() => router.back()}>
+        <HapticButton mode="text" onPress={() => router.back()}>
           {messages.exportBack}
-        </Button>
+        </HapticButton>
       </View>
       <Text variant="titleLarge">{messages.exportTitle}</Text>
 
       <Card>
         <Card.Content style={{ gap: 10 }}>
           <View style={styles.headerRow}>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-left"
               mode="outlined"
               size={22}
@@ -214,7 +271,8 @@ export default function ExportScreen() {
                 {meseKey}
               </Text>
             </View>
-            <IconButton
+            <HapticIconButton
+              haptic="light"
               icon="chevron-right"
               mode="outlined"
               size={22}
@@ -225,17 +283,17 @@ export default function ExportScreen() {
 
           <Divider />
 
-          <Button mode="contained" icon="file-pdf-box" onPress={onGeneratePdf} loading={busy} disabled={busy}>
+          <HapticButton mode="contained" icon="file-pdf-box" onPress={onGeneratePdf} loading={busy} disabled={busy}>
             {messages.exportGeneratePdf}
-          </Button>
+          </HapticButton>
 
-          <Button mode="outlined" icon="file-excel" onPress={onGenerateExcel} loading={busy} disabled={busy}>
+          <HapticButton mode="outlined" icon="file-excel" onPress={onGenerateExcel} loading={busy} disabled={busy}>
             {messages.exportGenerateExcel}
-          </Button>
+          </HapticButton>
 
-          <Button mode="outlined" icon="email-outline" onPress={onSendEmail} loading={busy} disabled={busy}>
+          <HapticButton mode="outlined" icon="email-outline" onPress={onSendEmail} loading={busy} disabled={busy}>
             {messages.exportSendEmail}
-          </Button>
+          </HapticButton>
         </Card.Content>
       </Card>
 
@@ -248,7 +306,7 @@ export default function ExportScreen() {
           <Dialog.Title>{messages.exportPdfDialogTitle}</Dialog.Title>
           <Dialog.Content style={{ gap: 4 }}>
             <Text style={{ marginBottom: 8, opacity: 0.72 }}>{messages.exportPdfDialogHint}</Text>
-            <Button
+            <HapticButton
               mode="contained-tonal"
               onPress={() => {
                 setScopeDialogOpen(false);
@@ -257,24 +315,24 @@ export default function ExportScreen() {
               disabled={busy}
             >
               {messages.exportPdfOptionPresenze}
-            </Button>
-            <Button
+            </HapticButton>
+            <HapticButton
               mode="outlined"
               onPress={() => openAttachOrExport('spese')}
               disabled={busy}
             >
               {messages.exportPdfOptionSpese}
-            </Button>
-            <Button
+            </HapticButton>
+            <HapticButton
               mode="outlined"
               onPress={() => openAttachOrExport('completo')}
               disabled={busy}
             >
               {messages.exportPdfOptionCompleto}
-            </Button>
-            <Button mode="text" onPress={() => closePdfDialogs()} disabled={busy}>
+            </HapticButton>
+            <HapticButton mode="text" onPress={() => closePdfDialogs()} disabled={busy}>
               {messages.resetCancel}
-            </Button>
+            </HapticButton>
           </Dialog.Content>
         </Dialog>
 
@@ -286,7 +344,7 @@ export default function ExportScreen() {
           <Dialog.Title>{messages.exportAttachDialogTitle}</Dialog.Title>
           <Dialog.Content style={{ gap: 4 }}>
             <Text style={{ marginBottom: 8, opacity: 0.72 }}>{messages.exportAttachDialogHint}</Text>
-            <Button
+            <HapticButton
               mode="contained-tonal"
               onPress={() => {
                 const scope = pendingScope ?? 'completo';
@@ -296,8 +354,8 @@ export default function ExportScreen() {
               disabled={busy || !pendingScope}
             >
               {messages.exportAttachWithout}
-            </Button>
-            <Button
+            </HapticButton>
+            <HapticButton
               mode="outlined"
               onPress={() => {
                 const scope = pendingScope ?? 'completo';
@@ -307,8 +365,8 @@ export default function ExportScreen() {
               disabled={busy || !pendingScope}
             >
               {messages.exportAttachWith}
-            </Button>
-            <Button
+            </HapticButton>
+            <HapticButton
               mode="text"
               onPress={() => {
                 setAttachDialogOpen(false);
@@ -318,7 +376,31 @@ export default function ExportScreen() {
               disabled={busy}
             >
               {messages.resetCancel}
-            </Button>
+            </HapticButton>
+          </Dialog.Content>
+        </Dialog>
+
+        <Dialog
+          visible={Boolean(webMailFollowUp)}
+          onDismiss={() => !busy && dismissWebMailDialog(true)}
+          dismissable={!busy}
+        >
+          <Dialog.Title>{messages.exportWebMailDialogTitle}</Dialog.Title>
+          <Dialog.Content style={{ gap: 10 }}>
+            <Text style={{ opacity: 0.82 }}>{messages.exportWebMailDialogBody}</Text>
+            <Text style={{ opacity: 0.65, fontSize: 12 }}>{messages.exportWebMailHint}</Text>
+            <HapticButton mode="contained" icon="share-variant" onPress={() => void onWebSharePdf()} disabled={busy}>
+              {messages.exportWebMailSharePdf}
+            </HapticButton>
+            <HapticButton mode="outlined" icon="email-outline" onPress={onWebOpenMailto} disabled={busy}>
+              {messages.exportWebMailOpenMailApp}
+            </HapticButton>
+            <HapticButton mode="outlined" icon="download" onPress={() => void onWebDownloadPdf()} disabled={busy}>
+              {messages.exportWebMailDownloadPdf}
+            </HapticButton>
+            <HapticButton mode="text" onPress={() => dismissWebMailDialog(true)} disabled={busy}>
+              {messages.resetCancel}
+            </HapticButton>
           </Dialog.Content>
         </Dialog>
       </Portal>
