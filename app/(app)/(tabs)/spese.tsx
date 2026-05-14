@@ -1,7 +1,7 @@
 import { addMonths, endOfMonth, format, parseISO, startOfMonth } from 'date-fns';
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Divider, IconButton, Text } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import {
 } from '../../../db/database';
 import { ensureDefaultLavoroDaysForMonth, oreSettingsFromImpostazioni } from '../../../utils/giorniMeseReport';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 type Group = { data: string; items: SpesaRow[]; total: number };
 
@@ -68,7 +69,7 @@ export default function SpeseTab() {
   const openResetMese = useCallback(() => {
     const key = monthKey(currentMonth);
     const monthTitle = formatD(currentMonth, 'LLLL yyyy');
-    Alert.alert(messages.resetMonthTitle, messages.resetMonthMessage(monthTitle), [
+    appAlert(messages.resetMonthTitle, messages.resetMonthMessage(monthTitle), [
       { text: messages.resetCancel, style: 'cancel' },
       {
         text: messages.resetSoloPresenze,
@@ -79,7 +80,7 @@ export default function SpeseTab() {
             await ensureDefaultLavoroDaysForMonth(key, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErrPresenze);
+            appAlert(messages.errorTitle, messages.resetErrPresenze);
           }
         },
       },
@@ -90,7 +91,7 @@ export default function SpeseTab() {
             await deleteSpeseInMonth(key);
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErrSpese);
+            appAlert(messages.errorTitle, messages.resetErrSpese);
           }
         },
       },
@@ -105,7 +106,7 @@ export default function SpeseTab() {
             await ensureDefaultLavoroDaysForMonth(key, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErr);
+            appAlert(messages.errorTitle, messages.resetErr);
           }
         },
       },

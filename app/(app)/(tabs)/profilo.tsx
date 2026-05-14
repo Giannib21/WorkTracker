@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, StyleSheet } from 'react-native';
+import { Linking, StyleSheet } from 'react-native';
 import { Button, Card, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +11,7 @@ import { COMPANY_LOCKED } from '../../../utils/companyInfo';
 import { finalizeDecimalForDb, sanitizeDecimalTyping } from '../../../utils/decimalInput';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 const ACI_COSTI_KM_URL = 'https://costikm.aci.it/home';
 
@@ -68,9 +69,9 @@ export default function ProfiloTab() {
         setImpostazione('modello_auto', modelloAuto.trim()),
         setImpostazione('eur_per_km', finalizeDecimalForDb(eurPerKm)),
       ]);
-      Alert.alert(messages.profileSavedTitle, messages.profileSavedBody);
+      appAlert(messages.profileSavedTitle, messages.profileSavedBody);
     } catch {
-      Alert.alert(messages.errorTitle, messages.profileSaveErr);
+      appAlert(messages.errorTitle, messages.profileSaveErr);
     } finally {
       setSaving(false);
     }

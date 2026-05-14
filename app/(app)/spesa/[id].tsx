@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Card, Divider, Text, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,6 +26,7 @@ import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps
 import { speseUiGroups } from '../../../utils/expenseCategories';
 import { isProbablyImagePath, persistPickedFile } from '../../../utils/spesaAttachments';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 /** Palette unica per le categorie (solo enfasi sulla selezione). */
 const CAT_STYLE = {
@@ -89,14 +90,14 @@ export default function SpesaDettaglio() {
       const row = await getSpesaById(existingId);
       if (!alive) return;
       if (!row) {
-        Alert.alert(messages.expNonTrovataTitle, messages.expNonTrovataBody);
+        appAlert(messages.expNonTrovataTitle, messages.expNonTrovataBody);
         router.back();
         return;
       }
       hydrate(row);
     })()
       .catch(() => {
-        Alert.alert(messages.errorTitle, messages.expLoadErrBody);
+        appAlert(messages.errorTitle, messages.expLoadErrBody);
       })
       .finally(() => {
         if (alive) setLoading(false);
@@ -162,7 +163,7 @@ export default function SpesaDettaglio() {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
-        Alert.alert(messages.permDeniedTitle, messages.permLocationBody);
+        appAlert(messages.permDeniedTitle, messages.permLocationBody);
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -180,7 +181,7 @@ export default function SpesaDettaglio() {
         setLocalita(coords);
       }
     } catch {
-      Alert.alert(messages.errorTitle, messages.gpsFailedBody);
+      appAlert(messages.errorTitle, messages.gpsFailedBody);
     }
   }
 
@@ -211,7 +212,7 @@ export default function SpesaDettaglio() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(messages.permDeniedTitle, messages.permGalleryBody);
+        appAlert(messages.permDeniedTitle, messages.permGalleryBody);
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -223,7 +224,7 @@ export default function SpesaDettaglio() {
       const dest = await persistPickedFile(res.assets[0].uri, res.assets[0].fileName ?? null);
       setFotoPath(dest);
     } catch {
-      Alert.alert(messages.errorTitle, messages.genericImageImportErr);
+      appAlert(messages.errorTitle, messages.genericImageImportErr);
     } finally {
       setPicking(false);
     }
@@ -235,7 +236,7 @@ export default function SpesaDettaglio() {
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert(messages.permDeniedTitle, messages.permCameraBody);
+        appAlert(messages.permDeniedTitle, messages.permCameraBody);
         return;
       }
       const res = await ImagePicker.launchCameraAsync({
@@ -246,7 +247,7 @@ export default function SpesaDettaglio() {
       const dest = await persistPickedFile(res.assets[0].uri, 'camera.jpg');
       setFotoPath(dest);
     } catch {
-      Alert.alert(messages.errorTitle, messages.genericPhotoCaptureErr);
+      appAlert(messages.errorTitle, messages.genericPhotoCaptureErr);
     } finally {
       setPicking(false);
     }
@@ -266,7 +267,7 @@ export default function SpesaDettaglio() {
       const dest = await persistPickedFile(uri, a.name ?? null);
       setFotoPath(dest);
     } catch {
-      Alert.alert(messages.errorTitle, messages.genericDocImportErr);
+      appAlert(messages.errorTitle, messages.genericDocImportErr);
     } finally {
       setPicking(false);
     }
@@ -279,29 +280,29 @@ export default function SpesaDettaglio() {
   async function onSave() {
     const importoN = parseMoneyAmount(importo);
     if (!data.trim()) {
-      Alert.alert(messages.errorTitle, messages.expMissingDate);
+      appAlert(messages.errorTitle, messages.expMissingDate);
       return;
     }
     let kmN: number | null = null;
     let eurN: number | null = null;
     if (tipo === 'km') {
       if (!percorsoDa.trim() || !percorsoA.trim()) {
-        Alert.alert(messages.errorTitle, messages.expKmMissingItinerary);
+        appAlert(messages.errorTitle, messages.expKmMissingItinerary);
         return;
       }
       kmN = parseMoneyAmount(km);
       eurN = parseMoneyAmount(eurPerKm);
       if (!Number.isFinite(kmN) || kmN <= 0 || !Number.isFinite(eurN) || eurN <= 0) {
-        Alert.alert(messages.expInvalidAmountTitle, messages.expInvalidAmountBody);
+        appAlert(messages.expInvalidAmountTitle, messages.expInvalidAmountBody);
         return;
       }
     }
     if (!localita.trim() || !progetto.trim()) {
-      Alert.alert(messages.errorTitle, messages.expMissingLocationProject);
+      appAlert(messages.errorTitle, messages.expMissingLocationProject);
       return;
     }
     if (!Number.isFinite(importoN) || importoN <= 0) {
-      Alert.alert(messages.expInvalidAmountTitle, messages.expInvalidAmountBody);
+      appAlert(messages.expInvalidAmountTitle, messages.expInvalidAmountBody);
       return;
     }
 
@@ -325,7 +326,7 @@ export default function SpesaDettaglio() {
           progetto: progetto.trim(),
         };
         await createSpesa(payload);
-        Alert.alert(messages.expInsertedTitle, messages.expInsertedBody);
+        appAlert(messages.expInsertedTitle, messages.expInsertedBody);
         router.back();
       } else if (existingId) {
         const payload: SpesaUpdate = {
@@ -346,11 +347,11 @@ export default function SpesaDettaglio() {
           progetto: progetto.trim(),
         };
         await updateSpesa(payload);
-        Alert.alert(messages.expUpdatedTitle, messages.expUpdatedBody);
+        appAlert(messages.expUpdatedTitle, messages.expUpdatedBody);
         router.back();
       }
     } catch {
-      Alert.alert(messages.errorTitle, messages.expSavedErr);
+      appAlert(messages.errorTitle, messages.expSavedErr);
     } finally {
       setSaving(false);
     }
@@ -358,7 +359,7 @@ export default function SpesaDettaglio() {
 
   async function onDelete() {
     if (!existingId) return;
-    Alert.alert(messages.expEliminaDomandaTitle, messages.expEliminaDomandaBody, [
+    appAlert(messages.expEliminaDomandaTitle, messages.expEliminaDomandaBody, [
       { text: messages.resetCancel, style: 'cancel' },
       {
         text: messages.expEliminaSi,
@@ -368,7 +369,7 @@ export default function SpesaDettaglio() {
             await deleteSpesaById(existingId);
             router.back();
           } catch {
-            Alert.alert(messages.errorTitle, messages.expDeleteErr);
+            appAlert(messages.errorTitle, messages.expDeleteErr);
           }
         },
       },

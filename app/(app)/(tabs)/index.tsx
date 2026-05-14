@@ -1,6 +1,6 @@
 import { addMonths, startOfMonth } from 'date-fns';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, LayoutChangeEvent, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { LayoutChangeEvent, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, IconButton, Text } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { disabledHomeMonthPlaceholder, useHomeMonthData } from '../../../hooks/u
 import { ensureDefaultLavoroDaysForMonth, oreSettingsFromImpostazioni } from '../../../utils/giorniMeseReport';
 import { monthKeyFromDate } from '../../../utils/homeMonthCalendar';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -56,7 +57,7 @@ export default function HomeScreen() {
   const openResetMese = useCallback(() => {
     const key = monthKeyFromDate(currentMonth);
     const monthTitle = formatD(currentMonth, 'LLLL yyyy');
-    Alert.alert(messages.resetMonthTitle, messages.resetMonthMessage(monthTitle), [
+    appAlert(messages.resetMonthTitle, messages.resetMonthMessage(monthTitle), [
       { text: messages.resetCancel, style: 'cancel' },
       {
         text: messages.resetSoloPresenze,
@@ -67,7 +68,7 @@ export default function HomeScreen() {
             await ensureDefaultLavoroDaysForMonth(key, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErrPresenze);
+            appAlert(messages.errorTitle, messages.resetErrPresenze);
           }
         },
       },
@@ -78,7 +79,7 @@ export default function HomeScreen() {
             await deleteSpeseInMonth(key);
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErrSpese);
+            appAlert(messages.errorTitle, messages.resetErrSpese);
           }
         },
       },
@@ -93,7 +94,7 @@ export default function HomeScreen() {
             await ensureDefaultLavoroDaysForMonth(key, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetErr);
+            appAlert(messages.errorTitle, messages.resetErr);
           }
         },
       },

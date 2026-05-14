@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Card, Divider, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ import { findCapoluogoFestivitaInAddress } from '../../../utils/indirizzoCapoluo
 import { getAppReleaseVersion } from '../../../utils/appVersion';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 export default function ImpostazioniTab() {
   const insets = useSafeAreaInsets();
@@ -92,10 +93,10 @@ export default function ImpostazioniTab() {
         setImpostazione('festivita_locali_abilitate', festivitaLocaliAbilitate ? '1' : '0'),
         setImpostazione('festivita_locali_ddmm', manualDdmm.trim()),
       ]);
-      Alert.alert(messages.settingsSavedTitle, messages.settingsSavedBody);
+      appAlert(messages.settingsSavedTitle, messages.settingsSavedBody);
       await refreshLanguage();
     } catch {
-      Alert.alert(messages.errorTitle, messages.settingsSaveErr);
+      appAlert(messages.errorTitle, messages.settingsSaveErr);
     } finally {
       setSaving(false);
     }

@@ -2,7 +2,7 @@ import { addDays, endOfMonth, format, isAfter, isBefore, parseISO, startOfMonth,
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Badge, Button, Card, Divider, IconButton, Switch, Text, TextInput } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ import { labelCategoriaSpesa } from '../../../utils/expenseCategories';
 import { hoursFromNumber, parseHoursStateString, processHoursInput } from '../../../utils/halfHourHours';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 /**
  * Sopravvive a un remount dopo `replace`: il ref del componente può azzerarsi prima del layout
@@ -276,7 +277,7 @@ export default function GiornoDettaglio() {
 
   const openResetGiorno = useCallback(() => {
     if (!data || !dateObj || !meseKeyGiorno) return;
-    Alert.alert(messages.resetDayTitle, messages.resetDayMessage, [
+    appAlert(messages.resetDayTitle, messages.resetDayMessage, [
       { text: messages.resetCancel, style: 'cancel' },
       {
         text: messages.resetSoloPresenze,
@@ -287,7 +288,7 @@ export default function GiornoDettaglio() {
             await ensureDefaultLavoroDaysForMonth(meseKeyGiorno, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetDayErrPresenze);
+            appAlert(messages.errorTitle, messages.resetDayErrPresenze);
           }
         },
       },
@@ -298,7 +299,7 @@ export default function GiornoDettaglio() {
             await deleteSpeseByDate(data);
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetDayErrSpese);
+            appAlert(messages.errorTitle, messages.resetDayErrSpese);
           }
         },
       },
@@ -313,7 +314,7 @@ export default function GiornoDettaglio() {
             await ensureDefaultLavoroDaysForMonth(meseKeyGiorno, oreSettingsFromImpostazioni(settings));
             reload();
           } catch {
-            Alert.alert(messages.errorTitle, messages.resetDayErr);
+            appAlert(messages.errorTitle, messages.resetDayErr);
           }
         },
       },
@@ -324,7 +325,7 @@ export default function GiornoDettaglio() {
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
       if (perm.status !== 'granted') {
-        Alert.alert(messages.permDeniedTitle, messages.permLocationBody);
+        appAlert(messages.permDeniedTitle, messages.permLocationBody);
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -342,7 +343,7 @@ export default function GiornoDettaglio() {
         setLuogo(coords);
       }
     } catch {
-      Alert.alert(messages.errorTitle, messages.gpsFailedBody);
+      appAlert(messages.errorTitle, messages.gpsFailedBody);
     }
   }
 
@@ -531,9 +532,9 @@ export default function GiornoDettaglio() {
     setSaving(true);
     try {
       await upsertGiorno(payload);
-      Alert.alert(messages.alertSaved, messages.daySavedBody);
+      appAlert(messages.alertSaved, messages.daySavedBody);
     } catch {
-      Alert.alert(messages.errorTitle, messages.daySaveFailed);
+      appAlert(messages.errorTitle, messages.daySaveFailed);
     } finally {
       setSaving(false);
     }
@@ -542,7 +543,7 @@ export default function GiornoDettaglio() {
   async function onSave() {
     if (!data || !dateObj) return;
     if (readonlyReason) {
-      Alert.alert(messages.dayNotEditableTitle, readonlyReason);
+      appAlert(messages.dayNotEditableTitle, readonlyReason);
       return;
     }
 
@@ -551,20 +552,20 @@ export default function GiornoDettaglio() {
     const trasferta = tipo === 'trasferta' || (tipo === 'lavoro' && oreTrasfN > 0) ? 1 : 0;
 
     if ((tipo === 'malattia' || tipo === 'ferie') && oreN !== 0) {
-      Alert.alert(messages.errorTitle, messages.dayHoursMustBeZero);
+      appAlert(messages.errorTitle, messages.dayHoursMustBeZero);
       return;
     }
 
     if (trasferta === 1 && oreTrasfN >= 1) {
       if (!luogo.trim() || !progetto.trim()) {
-        Alert.alert(messages.errorTitle, messages.dayTrasferMissingPlaceProject);
+        appAlert(messages.errorTitle, messages.dayTrasferMissingPlaceProject);
         return;
       }
     }
 
     const msgs = collectOreWarnings();
     if (msgs.length > 0) {
-      Alert.alert(messages.dayHoursCheckTitle, msgs.join('\n\n'), [
+      appAlert(messages.dayHoursCheckTitle, msgs.join('\n\n'), [
         { text: messages.dayEditAction, style: 'cancel' },
         { text: messages.daySaveAnywayAction, onPress: () => void commitSave() },
       ]);

@@ -1,7 +1,7 @@
 import { addMonths, format, startOfMonth } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Button, Card, Dialog, Divider, IconButton, Portal, Text } from 'react-native-paper';
 import * as MailComposer from 'expo-mail-composer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { COMPANY_LOCKED } from '../../../utils/companyInfo';
 import { generateExcelForMonth } from '../../../utils/excelExport';
 import { generatePdfForMonth, shareFile, type PdfExportScope } from '../../../utils/pdf';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
+import { appAlert } from '../../../utils/appAlert';
 
 function monthKey(d: Date): string {
   return format(d, 'yyyy-MM');
@@ -88,7 +89,7 @@ export default function ExportScreen() {
         await shareFile(uri, filename);
       }
     } catch {
-      Alert.alert(messages.errorTitle, messages.exportErrPdf);
+      appAlert(messages.errorTitle, messages.exportErrPdf);
     } finally {
       setBusy(false);
       closePdfDialogs();
@@ -109,13 +110,13 @@ export default function ExportScreen() {
       if (typeof window !== 'undefined') {
         window.open(q, '_blank', 'noopener,noreferrer');
       }
-      Alert.alert(messages.exportTitle, messages.exportWebMailHint);
+      appAlert(messages.exportTitle, messages.exportWebMailHint);
       return;
     }
 
     const isAvailable = await MailComposer.isAvailableAsync();
     if (!isAvailable) {
-      Alert.alert(messages.errorTitle, messages.exportMailUnavailable);
+      appAlert(messages.errorTitle, messages.exportMailUnavailable);
       return;
     }
 
@@ -170,7 +171,7 @@ export default function ExportScreen() {
       });
       await shareFile(uri, filename);
     } catch {
-      Alert.alert(messages.errorTitle, messages.exportErrExcel);
+      appAlert(messages.errorTitle, messages.exportErrExcel);
     } finally {
       setBusy(false);
     }
@@ -180,7 +181,7 @@ export default function ExportScreen() {
     try {
       await startPdfFlow('email');
     } catch {
-      Alert.alert(messages.errorTitle, messages.exportErrEmail);
+      appAlert(messages.errorTitle, messages.exportErrEmail);
     }
   }
 

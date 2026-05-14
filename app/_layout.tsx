@@ -4,6 +4,7 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 import { Button, configureFonts, MD3LightTheme, PaperProvider, Text, type MD3Theme } from 'react-native-paper';
 
 import { WebSqliteBlockedScreen } from '../components/WebSqliteBlockedScreen';
+import { WebAlertPortal } from '../components/WebAlertPortal';
 import { AppLocaleProvider } from '../context/AppLocaleContext';
 import { FloatingNumericKeyboardProvider } from '../components/FloatingNumericKeyboardProvider';
 import { initDb, resetDbConnection } from '../db/database';
@@ -133,6 +134,7 @@ export default function RootLayout() {
 
   return (
     <PaperProvider theme={paperTheme}>
+      <WebAlertPortal />
       <AppLocaleProvider>
         <FloatingNumericKeyboardProvider>
           <Stack screenOptions={{ headerShown: false }} />
