@@ -408,7 +408,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, on
             if (!busy && model) setCostFetchAck((v) => !v);
           }}
           disabled={busy || !model}
-          labelStyle={{ fontSize: 13, lineHeight: 19, opacity: 0.92 }}
+          labelStyle={{ fontSize: 11, lineHeight: 15, opacity: 0.9 }}
         />
 
         <Button

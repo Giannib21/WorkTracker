@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Linking, StyleSheet } from 'react-native';
-import { Button, Card, Divider, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardSafeScroll } from '../../../components/KeyboardSafeScroll';
@@ -144,8 +144,6 @@ export default function ProfiloTab() {
             </Text>
           </Text>
           <Text style={{ opacity: 0.65, fontSize: 13 }}>{messages.settingsDecimalHint}</Text>
-          <Divider />
-          <Text style={{ opacity: 0.7 }}>{messages.settingsAciPhase2Hint}</Text>
         </Card.Content>
       </Card>
 

@@ -97,7 +97,6 @@ export type Messages = {
   settingsCarModel: string;
   settingsEurPerKm: string;
   settingsDecimalHint: string;
-  settingsAciPhase2Hint: string;
   aciWizardTitle: string;
   aciWizardIntro: string;
   aciWizardLoadBrands: string;
@@ -342,7 +341,6 @@ const IT: Messages = {
   settingsCarModel: 'Modello auto',
   settingsEurPerKm: '€/km (decimale)',
   settingsDecimalHint: 'Usa virgola o punto per i decimali (es. 0,35 €/km).',
-  settingsAciPhase2Hint: 'Fase 2: con proxy configurato puoi richiedere il €/km da Profilo; altrimenti inserimento manuale.',
   aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
   aciWizardIntro:
     'Carica marche, carburante e modello dagli elenchi pubblici ACI. La stima €/km può essere richiesta qui sotto; in alternativa usa il calcolatore ufficiale e inserisci manualmente il valore nel campo €/km nella scheda Auto sopra.',
@@ -599,7 +597,6 @@ const EN: Messages = {
   settingsCarModel: 'Car model',
   settingsEurPerKm: '€/km (decimal)',
   settingsDecimalHint: 'Use comma or dot for decimals (e.g. 0.35 €/km).',
-  settingsAciPhase2Hint: 'Phase 2: with a configured proxy you can request €/km from Profile; otherwise enter it manually.',
   aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
   aciWizardIntro:
     'Load brand, fuel and model from the public ACI lists. You can request an estimated €/km below, or use the official calculator and enter the value manually in the €/km field in the Car section above.',
