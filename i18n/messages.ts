@@ -222,6 +222,9 @@ export type Messages = {
   expKmEurKm: string;
   expKmModello: string;
   expKmComputed: string;
+  expKmSavedCarToggle: string;
+  expKmSavedCarHint: string;
+  expKmSavedCarUnavailable: string;
   expDocSection: string;
   expDocHint: string;
   expFotocamera: string;
@@ -459,9 +462,9 @@ const IT: Messages = {
   daySavedBody: 'Giornata aggiornata.',
   daySaveFailed: 'Impossibile salvare la giornata.',
   listSpeseTotalsMonth: 'Totale mese',
-  listSpeseNuova: '+ Nuova spesa',
+  listSpeseNuova: '+ Nuova Spesa',
   listSpeseEmptyMonth: 'Nessuna spesa registrata per questo mese.',
-  expNewTitle: 'Nuova spesa',
+  expNewTitle: 'Nuova Spesa',
   expEditTitle: 'Spesa',
   expDettagliSection: 'Dettagli',
   expDateLabel: 'Data (YYYY-MM-DD)',
@@ -481,6 +484,9 @@ const IT: Messages = {
   expKmEurKm: '€/km',
   expKmModello: 'Modello auto',
   expKmComputed: 'Importo calcolato:',
+  expKmSavedCarToggle: 'Auto salvata',
+  expKmSavedCarHint: 'Usa modello e €/km impostati in Profilo.',
+  expKmSavedCarUnavailable: 'Salva modello e €/km in Profilo per poter usare questa opzione.',
   expDocSection: 'Documento / ricevuta',
   expDocHint:
     'Allega foto o PDF: verrà incluso nel report PDF del mese (le immagini sono incorporate; i PDF sono indicati nel report con il nome file).',
@@ -740,6 +746,9 @@ const EN: Messages = {
   expKmEurKm: '€/km',
   expKmModello: 'Car model',
   expKmComputed: 'Calculated amount:',
+  expKmSavedCarToggle: 'Saved car',
+  expKmSavedCarHint: 'Uses the car model and €/km from Profile.',
+  expKmSavedCarUnavailable: 'Save car model and €/km in Profile to enable this option.',
   expDocSection: 'Receipt / document',
   expDocHint:
     'Attach a photo or PDF: it will be included in the monthly PDF report (images are embedded; PDFs are listed with the file name).',

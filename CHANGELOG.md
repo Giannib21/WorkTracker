@@ -8,6 +8,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.2] — 2026-05-14
+
+### Added
+
+- **Spesa — rimborso km:** toggle **«Auto salvata»** sotto il campo Km: se attivo (e il Profilo ha modello + €/km), **€/km** e **modello auto** sono precompilati dal profilo e non editabili; se disattivo sono liberi. In **nuova spesa**, con profilo completo il toggle va **on** scegliendo la categoria km; in **modifica** va **on** solo se i valori salvati coincidono con il profilo. `useFocusEffect` aggiorna i dati profilo al ritorno sulla schermata.
+
+### Changed
+
+- Versione app e pacchetto portate a **2.2.2** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **i18n IT:** titolo scheda **`Nuova Spesa`** (`expNewTitle`) e pulsante elenco **`+ Nuova Spesa`** (`listSpeseNuova`).
+
 ## [2.2.1] — 2026-05-14
 
 ### Changed

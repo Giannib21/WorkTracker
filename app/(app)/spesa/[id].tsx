@@ -1,11 +1,11 @@
 import { format, parseISO } from 'date-fns';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Card, Divider, Text, TextInput } from 'react-native-paper';
+import { Card, Divider, Switch, Text, TextInput } from 'react-native-paper';
 
 import { HapticButton } from '../../../components/HapticButton';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,12 @@ const CAT_STYLE = {
   textSel: '#3730a3',
 } as const;
 
+function profileHasKmCar(modello: string, eurPerKmStr: string): boolean {
+  if (!(modello ?? '').trim()) return false;
+  const e = parseMoneyAmount(String(eurPerKmStr ?? '0'));
+  return Number.isFinite(e) && e > 0;
+}
+
 export default function SpesaDettaglio() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -74,6 +80,16 @@ export default function SpesaDettaglio() {
   const [fotoPath, setFotoPath] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
 
+  const [profileKmModel, setProfileKmModel] = useState('');
+  const [profileKmEur, setProfileKmEur] = useState('0');
+  const [useSavedProfileCar, setUseSavedProfileCar] = useState(false);
+  const userToggledOffSavedCar = useRef(false);
+
+  const profileHasSavedCar = useMemo(
+    () => profileHasKmCar(profileKmModel, profileKmEur),
+    [profileKmModel, profileKmEur],
+  );
+
   const gruppiSpesa = useMemo(() => speseUiGroups(language, messages), [language, messages]);
 
   const headerSubtitle = useMemo(() => {
@@ -90,7 +106,7 @@ export default function SpesaDettaglio() {
     let alive = true;
     setLoading(true);
     (async () => {
-      const row = await getSpesaById(existingId);
+      const [row, settings] = await Promise.all([getSpesaById(existingId), getImpostazioniAll()]);
       if (!alive) return;
       if (!row) {
         appAlert(messages.expNonTrovataTitle, messages.expNonTrovataBody);
@@ -98,6 +114,26 @@ export default function SpesaDettaglio() {
         return;
       }
       hydrate(row);
+      const pm = (settings.modello_auto ?? '').trim();
+      const pe = settings.eur_per_km ?? '0';
+      setProfileKmModel(pm);
+      setProfileKmEur(pe);
+      const has = profileHasKmCar(pm, pe);
+      if (has) {
+        const rowModel = (row.modello_auto ?? '').trim();
+        const rowEur = parseMoneyAmount(String(row.eur_per_km ?? 0));
+        const profEur = parseMoneyAmount(pe);
+        const match =
+          rowModel === pm &&
+          Number.isFinite(rowEur) &&
+          Number.isFinite(profEur) &&
+          Math.abs(rowEur - profEur) < 0.00001;
+        setUseSavedProfileCar(match);
+        userToggledOffSavedCar.current = !match;
+      } else {
+        setUseSavedProfileCar(false);
+        userToggledOffSavedCar.current = false;
+      }
     })()
       .catch(() => {
         appAlert(messages.errorTitle, messages.expLoadErrBody);
@@ -118,16 +154,31 @@ export default function SpesaDettaglio() {
     (async () => {
       const settings = await getImpostazioniAll();
       if (!alive) return;
-      if (settings.modello_auto && !modelloAuto) setModelloAuto(settings.modello_auto);
-      if (settings.eur_per_km && (eurPerKm === '0' || eurPerKm === '0.0')) setEurPerKm(settings.eur_per_km);
+      const pm = (settings.modello_auto ?? '').trim();
+      const pe = settings.eur_per_km ?? '0';
+      setProfileKmModel(pm);
+      setProfileKmEur(pe);
     })().catch(() => {
       // noop
     });
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNew]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void getImpostazioniAll().then((s) => {
+        if (cancelled) return;
+        setProfileKmModel((s.modello_auto ?? '').trim());
+        setProfileKmEur(s.eur_per_km ?? '0');
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     if (!isNew) return;
@@ -196,10 +247,51 @@ export default function SpesaDettaglio() {
     return Math.round(k * eParsed * 100) / 100;
   }, [tipo, km, eurPerKm]);
 
+  useEffect(() => {
+    if (!profileHasSavedCar) {
+      setUseSavedProfileCar(false);
+    }
+  }, [profileHasSavedCar]);
+
+  useEffect(() => {
+    if (tipo !== 'km' || !useSavedProfileCar) return;
+    if (!profileHasKmCar(profileKmModel, profileKmEur)) return;
+    setModelloAuto(profileKmModel);
+    setEurPerKm(profileKmEur);
+  }, [tipo, useSavedProfileCar, profileKmModel, profileKmEur]);
+
+  useEffect(() => {
+    if (!isNew || tipo !== 'km') return;
+    if (userToggledOffSavedCar.current) return;
+    if (!profileHasKmCar(profileKmModel, profileKmEur)) return;
+    const emptyish =
+      !modelloAuto.trim() && (eurPerKm.trim() === '' || eurPerKm.trim() === '0' || eurPerKm.trim() === '0.0');
+    if (emptyish) {
+      setUseSavedProfileCar(true);
+      setModelloAuto(profileKmModel);
+      setEurPerKm(profileKmEur);
+    }
+  }, [isNew, tipo, profileKmModel, profileKmEur, modelloAuto, eurPerKm]);
+
   function applyTipo(next: CategoriaSpesa) {
     setTipo(next);
-    if (next === 'km' && computedImportoKm !== null) {
-      setImporto(String(computedImportoKm));
+    if (next === 'km' && profileHasKmCar(profileKmModel, profileKmEur)) {
+      userToggledOffSavedCar.current = false;
+      setUseSavedProfileCar(true);
+      setModelloAuto(profileKmModel);
+      setEurPerKm(profileKmEur);
+    }
+  }
+
+  function onToggleSavedProfileCar(value: boolean) {
+    hapticSelection();
+    if (!profileHasSavedCar) return;
+    if (!value) userToggledOffSavedCar.current = true;
+    else userToggledOffSavedCar.current = false;
+    setUseSavedProfileCar(value);
+    if (value) {
+      setModelloAuto(profileKmModel);
+      setEurPerKm(profileKmEur);
     }
   }
 
@@ -535,19 +627,32 @@ export default function SpesaDettaglio() {
                 onChangeText={(t) => setKm(sanitizeDecimalTyping(t, 2))}
                 disabled={loading || saving}
               />
+              <View style={styles.savedCarRow}>
+                <View style={styles.savedCarTextCol}>
+                  <Text variant="bodyMedium">{messages.expKmSavedCarToggle}</Text>
+                  <Text style={styles.savedCarHint}>
+                    {profileHasSavedCar ? messages.expKmSavedCarHint : messages.expKmSavedCarUnavailable}
+                  </Text>
+                </View>
+                <Switch
+                  value={useSavedProfileCar}
+                  onValueChange={onToggleSavedProfileCar}
+                  disabled={loading || saving || !profileHasSavedCar}
+                />
+              </View>
               <TextInput
                 label={messages.expKmEurKm}
                 {...numericKeyboardDismissProps()}
                 keyboardType="decimal-pad"
                 value={eurPerKm}
                 onChangeText={(t) => setEurPerKm(sanitizeDecimalTyping(t, 2))}
-                disabled={loading || saving}
+                disabled={loading || saving || useSavedProfileCar}
               />
               <TextInput
                 label={messages.expKmModello}
                 value={modelloAuto}
                 onChangeText={setModelloAuto}
-                disabled={loading || saving}
+                disabled={loading || saving || useSavedProfileCar}
               />
               <Text style={{ opacity: 0.75 }}>
                 {messages.expKmComputed} € {(computedImportoKm ?? 0).toFixed(2)}
@@ -653,6 +758,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  savedCarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  savedCarTextCol: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  savedCarHint: {
+    opacity: 0.72,
+    fontSize: 12,
+    marginTop: 4,
   },
   rowWrap: {
     flexDirection: 'row',
