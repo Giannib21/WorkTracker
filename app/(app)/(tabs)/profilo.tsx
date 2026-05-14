@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { Card, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 
@@ -33,6 +33,20 @@ export default function ProfiloTab() {
   const [modelloAuto, setModelloAuto] = useState('');
   const [eurPerKm, setEurPerKm] = useState('0');
   const [carCostMode, setCarCostMode] = useState<CarCostMode>('manual');
+  const [aciWizardError, setAciWizardError] = useState<string | null>(null);
+
+  const handleAciErrorChange = useCallback((msg: string | null) => {
+    setAciWizardError(msg);
+  }, []);
+
+  useEffect(() => {
+    if (carCostMode !== 'auto') {
+      setAciWizardError(null);
+    }
+  }, [carCostMode]);
+
+  const showOfficialAciCalculator =
+    carCostMode === 'manual' || (carCostMode === 'auto' && Boolean(aciWizardError?.trim()));
 
   useEffect(() => {
     let alive = true;
@@ -155,24 +169,27 @@ export default function ProfiloTab() {
             disabled={loading || saving || carCostMode === 'auto'}
           />
           <Text style={{ opacity: 0.65, fontSize: 13 }}>{messages.settingsDecimalHint}</Text>
-          <HapticButton
-            mode="contained"
-            icon="open-in-new"
-            onPress={() => void Linking.openURL(ACI_OFFICIAL_CALC_URL)}
-            disabled={loading || saving}
-          >
-            {messages.aciWizardOpenOfficialCalculator}
-          </HapticButton>
+          {showOfficialAciCalculator ? (
+            <HapticButton
+              mode="contained"
+              icon="open-in-new"
+              onPress={() => void Linking.openURL(ACI_OFFICIAL_CALC_URL)}
+              disabled={loading || saving}
+            >
+              {messages.aciWizardOpenOfficialCalculator}
+            </HapticButton>
+          ) : null}
+          {carCostMode === 'auto' ? (
+            <AciCostikmProfileSection
+              embedded
+              disabled={loading || saving}
+              onApplyEurPerKm={(v) => setEurPerKm(v)}
+              onApplyCarModel={(description) => setModelloAuto(description)}
+              onErrorChange={handleAciErrorChange}
+            />
+          ) : null}
         </Card.Content>
       </Card>
-
-      {carCostMode === 'auto' ? (
-        <AciCostikmProfileSection
-          disabled={loading || saving}
-          onApplyEurPerKm={(v) => setEurPerKm(v)}
-          onApplyCarModel={(description) => setModelloAuto(description)}
-        />
-      ) : null}
 
       <HapticButton mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
         {messages.profileSaveButton}
