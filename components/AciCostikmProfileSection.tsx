@@ -1,10 +1,11 @@
 import { format } from 'date-fns';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
   Card,
+  Checkbox,
   Dialog,
   Divider,
   List,
@@ -14,8 +15,6 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-
-import * as Clipboard from 'expo-clipboard';
 
 import { useAppLocale } from '../context/AppLocaleContext';
 import {
@@ -46,9 +45,11 @@ const ACI_OFFICIAL_CALC_URL = 'https://costikm.aci.it/home';
 type Props = {
   disabled?: boolean;
   onApplyEurPerKm: (sanitizedDecimal: string) => void;
+  /** Sincronizza il campo «Modello auto» in Profilo con la selezione ACI (marca · modello · carburante). */
+  onApplyCarModel: (vehicleDescription: string) => void;
 };
 
-export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: Props) {
+export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm, onApplyCarModel }: Props) {
   const theme = useTheme();
   const { messages } = useAppLocale();
 
@@ -72,6 +73,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
   const [suggestedEur, setSuggestedEur] = useState<string | null>(null);
   const [eurBands, setEurBands] = useState<{ label: string; value: string }[]>([]);
   const [annualKmInput, setAnnualKmInput] = useState('');
+  const [costFetchAck, setCostFetchAck] = useState(false);
 
   const applyEurRef = useRef(onApplyEurPerKm);
   applyEurRef.current = onApplyEurPerKm;
@@ -107,6 +109,10 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
     if (!band) return;
     applyEurRef.current(sanitizeDecimalTyping(String(band.cost).replace('.', ',')));
   }, [resultJson, annualKmParsed]);
+
+  useEffect(() => {
+    setCostFetchAck(false);
+  }, [model?.id]);
 
   const loadBrands = useCallback(async () => {
     setError(null);
@@ -194,29 +200,19 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
     setSuggestedEur(null);
     setEurBands([]);
     setAnnualKmInput('');
+    setCostFetchAck(false);
   }
 
-  async function onCopySelectionSummary(): Promise<void> {
-    if (!brand || !fuel || !model) {
-      setError(messages.aciWizardCopySelectionNeedSelection);
-      return;
-    }
-    setError(null);
-    const vatLabel = vatNet ? messages.aciWizardCopyLabelVatNet : messages.aciWizardCopyLabelVatGross;
-    const lines = [
-      `${messages.aciWizardCopyLabelBrand}: ${brand.name}`,
-      `${messages.aciWizardCopyLabelFuel}: ${fuel.name}`,
-      `${messages.aciWizardCopyLabelModel}: ${model.name}`,
-      `${messages.aciWizardCopyLabelDate}: ${costDate.trim()}`,
-      `${vatLabel}`,
-    ];
-    await Clipboard.setStringAsync(lines.join('\n'));
-    Alert.alert(messages.alertSaved, messages.aciWizardCopySelectionDone);
+  function applyVehicleDescription(b: AciBrand, f: AciFuel, m: AciModel) {
+    onApplyCarModel(`${b.name} ${m.name} (${f.name})`);
   }
 
   async function onFetchCostsViaProxy() {
     if (!brand || !fuel || !model) {
       setError(messages.aciWizardErrIncomplete);
+      return;
+    }
+    if (!costFetchAck) {
       return;
     }
     if (!proxyUrl) {
@@ -295,7 +291,10 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
           title={m.name}
           description={m.classe_euro ? `Euro ${m.classe_euro}` : undefined}
           onPress={() => {
-            setModel(m);
+            if (brand && fuel) {
+              setModel(m);
+              applyVehicleDescription(brand, fuel, m);
+            }
             setPicker(null);
           }}
         />
@@ -313,6 +312,10 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
           ? messages.aciWizardSelectModel
           : '';
 
+  const hasOutput =
+    resultJson &&
+    (eurBands.length > 0 || suggestedEur || (annualKmParsed != null && annualKmSuggestion != null));
+
   return (
     <Card mode="outlined">
       <Card.Content style={{ gap: 10 }}>
@@ -320,11 +323,6 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
         <Text variant="bodySmall" style={{ opacity: 0.78 }}>
           {messages.aciWizardIntro}
         </Text>
-        {Platform.OS === 'web' ? (
-          <Text variant="bodySmall" style={{ opacity: 0.72 }}>
-            {messages.aciWizardWebCorsHint}
-          </Text>
-        ) : null}
 
         <Divider />
 
@@ -390,9 +388,6 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
         <Text variant="titleSmall" style={{ opacity: 0.92 }}>
           {messages.aciWizardCostFetchTitle}
         </Text>
-        <Text variant="bodySmall" style={{ opacity: 0.76 }}>
-          {messages.aciWizardCostFetchBody}
-        </Text>
         <TextInput
           label={messages.aciWizardAnnualKmLabel}
           value={annualKmInput}
@@ -403,11 +398,24 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
         <Text variant="bodySmall" style={{ opacity: 0.7 }}>
           {messages.aciWizardAnnualKmHelper}
         </Text>
+
+        <Checkbox.Item
+          mode="android"
+          position="leading"
+          label={messages.aciWizardPersonalUseCheckbox}
+          status={costFetchAck ? 'checked' : 'unchecked'}
+          onPress={() => {
+            if (!busy && model) setCostFetchAck((v) => !v);
+          }}
+          disabled={busy || !model}
+          labelStyle={{ fontSize: 13, lineHeight: 19, opacity: 0.92 }}
+        />
+
         <Button
           mode="contained-tonal"
           icon="cloud-download-outline"
           onPress={() => void onFetchCostsViaProxy()}
-          disabled={busy || !model}
+          disabled={busy || !model || !costFetchAck}
           loading={calculating}
         >
           {messages.aciWizardCostFetchButton}
@@ -428,25 +436,29 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
         >
           {messages.aciWizardOpenOfficialCalculator}
         </Button>
-        <Button mode="outlined" icon="content-copy" onPress={() => void onCopySelectionSummary()} disabled={busy || !model}>
-          {messages.aciWizardCopySelectionSummary}
-        </Button>
 
-        {resultJson ? (
-          <View style={{ gap: 8 }}>
-            <Text variant="labelLarge">{messages.aciWizardResultTitle}</Text>
-            <ScrollView style={styles.jsonScroll} nestedScrollEnabled>
-              <Text selectable variant="bodySmall" style={styles.jsonText}>
-                {resultJson.length > 4000 ? `${resultJson.slice(0, 4000)}…` : resultJson}
-              </Text>
-            </ScrollView>
+        {hasOutput ? (
+          <View
+            style={[
+              styles.outputPanel,
+              {
+                borderColor: theme.colors.outlineVariant,
+                backgroundColor: theme.colors.surface,
+              },
+            ]}
+          >
+            <Text variant="titleMedium" style={{ color: theme.colors.primary }}>
+              {messages.aciWizardResultTitle}
+            </Text>
+
             {eurBands.length > 0 || suggestedEur ? (
-              <Text variant="bodySmall" style={{ opacity: 0.78 }}>
+              <Text variant="bodyMedium" style={{ opacity: 0.88, marginTop: 4 }}>
                 {messages.aciWizardKmBandsHint}
               </Text>
             ) : null}
+
             {annualKmParsed != null && annualKmSuggestion ? (
-              <Text variant="bodyMedium" style={{ opacity: 0.9 }}>
+              <Text variant="bodyLarge" style={{ opacity: 0.95, marginTop: 8 }}>
                 {messages.aciWizardEurPerKmAutoApplied(
                   annualKmSuggestion.userKm,
                   annualKmSuggestion.band.km,
@@ -454,6 +466,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
                 )}
               </Text>
             ) : null}
+
             {annualKmParsed == null && eurBands.length > 0 ? (
               <View
                 style={[
@@ -461,6 +474,7 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
                   {
                     borderColor: theme.colors.outlineVariant,
                     backgroundColor: theme.colors.surface,
+                    marginTop: 10,
                   },
                 ]}
               >
@@ -512,9 +526,11 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
                 ))}
               </View>
             ) : null}
+
             {annualKmParsed == null && eurBands.length === 0 && suggestedEur ? (
               <Button
-                mode="contained-tonal"
+                mode="contained"
+                style={{ marginTop: 12 }}
                 onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(suggestedEur))}
                 disabled={busy}
               >
@@ -543,8 +559,13 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  jsonScroll: { maxHeight: 220, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ccc', borderRadius: 8 },
-  jsonText: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }), padding: 8 },
+  outputPanel: {
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    gap: 4,
+  },
   bandsTable: {
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,

@@ -100,7 +100,6 @@ export type Messages = {
   settingsAciPhase2Hint: string;
   aciWizardTitle: string;
   aciWizardIntro: string;
-  aciWizardWebCorsHint: string;
   aciWizardLoadBrands: string;
   aciWizardSelectBrand: string;
   aciWizardSelectFuel: string;
@@ -112,22 +111,13 @@ export type Messages = {
   aciWizardErrGeneric: string;
   aciWizardErrIncomplete: string;
   aciWizardOpenOfficialCalculator: string;
-  aciWizardCopySelectionSummary: string;
-  aciWizardCopySelectionDone: string;
-  aciWizardCopySelectionNeedSelection: string;
-  aciWizardCopyLabelBrand: string;
-  aciWizardCopyLabelFuel: string;
-  aciWizardCopyLabelModel: string;
-  aciWizardCopyLabelDate: string;
-  aciWizardCopyLabelVatNet: string;
-  aciWizardCopyLabelVatGross: string;
   aciWizardCostFetchTitle: string;
-  aciWizardCostFetchBody: string;
   aciWizardCostFetchButton: string;
   aciWizardCostFetchProxyRequired: string;
   aciWizardSessionExpired: string;
   aciWizardKeycloakTokenRequired: string;
   aciWizardResultTitle: string;
+  aciWizardPersonalUseCheckbox: string;
   aciWizardApplyRate: string;
   aciWizardKmBandsHint: string;
   aciWizardAnnualKmLabel: string;
@@ -355,9 +345,7 @@ const IT: Messages = {
   settingsAciPhase2Hint: 'Fase 2: con proxy configurato puoi richiedere il €/km da Profilo; altrimenti inserimento manuale.',
   aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
   aciWizardIntro:
-    'Carica marche, carburante e modello (elenchi pubblici ACI). Il valore €/km ufficiale va preso solo dal calcolatore sul sito: copia il riepilogo qui sotto e incollalo lì, poi trascrivi il €/km nel campo sopra in Profilo.',
-  aciWizardWebCorsHint:
-    'Su browser le chiamate al catalogo possono essere bloccate da CORS: imposta EXPO_PUBLIC_ACI_PROXY_URL verso il tuo `/api/aci-proxy` (solo `/vehicles/*`). Su app native di solito non serve.',
+    'Carica marche, carburante e modello dagli elenchi pubblici ACI. La stima €/km può essere richiesta qui sotto; in alternativa usa il calcolatore ufficiale e inserisci manualmente il valore nel campo €/km nella scheda Auto sopra.',
   aciWizardLoadBrands: 'Carica marche',
   aciWizardSelectBrand: 'Marca',
   aciWizardSelectFuel: 'Carburante',
@@ -369,28 +357,19 @@ const IT: Messages = {
   aciWizardErrGeneric: 'Richiesta non riuscita.',
   aciWizardErrIncomplete: 'Seleziona marca, carburante e modello.',
   aciWizardOpenOfficialCalculator: 'Apri calcolo ufficiale ACI',
-  aciWizardCopySelectionSummary: 'Copia riepilogo per il sito',
-  aciWizardCopySelectionDone: 'Riepilogo copiato negli appunti.',
-  aciWizardCopySelectionNeedSelection: 'Scegli prima marca, carburante e modello.',
-  aciWizardCopyLabelBrand: 'Marca',
-  aciWizardCopyLabelFuel: 'Carburante',
-  aciWizardCopyLabelModel: 'Modello',
-  aciWizardCopyLabelDate: 'Data riferimento',
-  aciWizardCopyLabelVatNet: 'Importo netto (IVA esclusa)',
-  aciWizardCopyLabelVatGross: 'Importo lordo',
   aciWizardCostFetchTitle: 'Calcolo €/km (proxy didattico)',
-  aciWizardCostFetchBody:
-    'Se `EXPO_PUBLIC_ACI_PROXY_URL` punta al tuo `aci-proxy` con risolutore captcha lato server, qui puoi richiedere il JSON costi. L’operazione può richiedere diversi minuti (polling servizio esterno). Solo per ambienti di prova.',
   aciWizardCostFetchButton: 'Richiedi dati costo',
   aciWizardCostFetchProxyRequired:
     'Imposta `EXPO_PUBLIC_ACI_PROXY_URL` verso il deploy che espone `aci-proxy` (e riavvia Metro) per abilitare il pulsante.',
   aciWizardSessionExpired: 'Sessione non valida (401). Riprova più tardi o verifica il proxy.',
   aciWizardKeycloakTokenRequired:
     "L'API ACI ha risposto 403: serve un JWT Keycloak sul proxy. Su Vercel imposta `ACI_COSTIKM_KEYCLOAK_TOKEN` con il valore di `localStorage.token` dopo login CIE/SPID su costikm.aci.it (es. `npm run aci:capture`), poi redeploy. Il solo captcha risolto non basta per `/costs` in produzione.",
-  aciWizardResultTitle: 'Risposta',
+  aciWizardResultTitle: 'Stima costi al km',
+  aciWizardPersonalUseCheckbox:
+    'Dichiaro di utilizzare questa funzione esclusivamente per finalità personali e non commerciali, senza rivendita o ridistribuzione dei dati, nel rispetto dei termini di servizio delle fonti e della normativa applicabile.',
   aciWizardApplyRate: 'Applica al campo €/km',
   aciWizardKmBandsHint:
-    'La risposta può contenere più valori €/km (fasce km/anno): scegli la riga adatta oppure indica i km annui qui sotto per un suggerimento.',
+    'Se compaiono più fasce chilometriche, scegli quella adatta o indica i km annui per applicare automaticamente il €/km corretto.',
   aciWizardAnnualKmLabel: 'Km annui stimati (opzionale)',
   aciWizardAnnualKmHelper:
     "L'API ACI restituisce di solito l'intera tabella per il veicolo; non è obbligatorio passare i km nella richiesta. Qui puoi inserire i tuoi km annui per evidenziare la fascia più plausibile.",
@@ -623,9 +602,7 @@ const EN: Messages = {
   settingsAciPhase2Hint: 'Phase 2: with a configured proxy you can request €/km from Profile; otherwise enter it manually.',
   aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
   aciWizardIntro:
-    'Load brand, fuel and model (public ACI lists). The official €/km must be taken only from the website calculator: copy the summary below into the site, then type the €/km into the field above on this screen.',
-  aciWizardWebCorsHint:
-    'In the browser, catalog requests may be blocked by CORS: set EXPO_PUBLIC_ACI_PROXY_URL to your `/api/aci-proxy` (vehicles paths only). Native apps usually work without it.',
+    'Load brand, fuel and model from the public ACI lists. You can request an estimated €/km below, or use the official calculator and enter the value manually in the €/km field in the Car section above.',
   aciWizardLoadBrands: 'Load brands',
   aciWizardSelectBrand: 'Brand',
   aciWizardSelectFuel: 'Fuel',
@@ -637,28 +614,19 @@ const EN: Messages = {
   aciWizardErrGeneric: 'Request failed.',
   aciWizardErrIncomplete: 'Select brand, fuel, and model.',
   aciWizardOpenOfficialCalculator: 'Open official ACI calculator',
-  aciWizardCopySelectionSummary: 'Copy summary for the website',
-  aciWizardCopySelectionDone: 'Summary copied to clipboard.',
-  aciWizardCopySelectionNeedSelection: 'Choose brand, fuel and model first.',
-  aciWizardCopyLabelBrand: 'Brand',
-  aciWizardCopyLabelFuel: 'Fuel',
-  aciWizardCopyLabelModel: 'Model',
-  aciWizardCopyLabelDate: 'Reference date',
-  aciWizardCopyLabelVatNet: 'Net amount (excl. VAT)',
-  aciWizardCopyLabelVatGross: 'Gross amount',
   aciWizardCostFetchTitle: '€/km calculation (didactic proxy)',
-  aciWizardCostFetchBody:
-    'If `EXPO_PUBLIC_ACI_PROXY_URL` points to your `aci-proxy` with server-side captcha solving, you can request the costs JSON here. This may take several minutes (external polling). For test environments only.',
   aciWizardCostFetchButton: 'Request cost data',
   aciWizardCostFetchProxyRequired:
     'Set `EXPO_PUBLIC_ACI_PROXY_URL` to your `aci-proxy` deployment (and restart Metro) to enable the button.',
   aciWizardSessionExpired: 'Invalid session (401). Retry later or check the proxy.',
   aciWizardKeycloakTokenRequired:
     'The ACI API returned 403: the proxy needs a Keycloak JWT. On Vercel set `ACI_COSTIKM_KEYCLOAK_TOKEN` to your `localStorage.token` after logging in to costikm.aci.it (e.g. `npm run aci:capture`), then redeploy. A solved captcha alone is not enough for `/costs` in production.',
-  aciWizardResultTitle: 'Response',
+  aciWizardResultTitle: 'Estimated cost per km',
+  aciWizardPersonalUseCheckbox:
+    'I confirm I use this feature solely for personal, non-commercial purposes, without resale or redistribution of the data, in compliance with the applicable terms of service and law.',
   aciWizardApplyRate: 'Apply to €/km field',
   aciWizardKmBandsHint:
-    'The response may include several €/km values (annual km bands): pick the right row, or enter your annual km below for a suggestion.',
+    'If several mileage bands appear, pick the right one or enter annual km to apply the matching €/km automatically.',
   aciWizardAnnualKmLabel: 'Estimated annual km (optional)',
   aciWizardAnnualKmHelper:
     'The ACI API usually returns the full table for the vehicle; annual km is not required on the request. Enter yours here to highlight the most plausible band.',

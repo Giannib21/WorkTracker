@@ -132,7 +132,7 @@ async function main(): Promise<void> {
     `Cookie: ${cookies.length} | importantKeys: ${Object.keys(importantKeys).length} | bearer: ${bearerToken ? 'sì' : 'no'} | apiCaptchaPublic: ${apiCaptchaPublic ? 'sì' : 'no'}`,
   );
   console.log(
-    '\nVercel: imposta ACI_SESSION_JSON con il contenuto JSON del file (una riga), oppure usa solo `vercel dev` con il file locale.',
+    '\nVercel: `npm run aci:print-vercel-env` stampa ACI_SESSION_JSON (+ JWT se c’è) pronti da incollare; con `--write-one-line` salva anche scripts/aci/aci-session.one-line.json per copiarlo dal telefono (file gitignored). Oppure `vercel dev` con il file locale.',
   );
 
   await browser.close();

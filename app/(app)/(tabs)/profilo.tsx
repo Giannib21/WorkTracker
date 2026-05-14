@@ -152,6 +152,7 @@ export default function ProfiloTab() {
       <AciCostikmProfileSection
         disabled={loading || saving}
         onApplyEurPerKm={(v) => setEurPerKm(v)}
+        onApplyCarModel={(description) => setModelloAuto(description)}
       />
 
       <Button mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
