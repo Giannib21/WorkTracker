@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -73,11 +73,15 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
   const [eurBands, setEurBands] = useState<{ label: string; value: string }[]>([]);
   const [annualKmInput, setAnnualKmInput] = useState('');
 
+  const applyEurRef = useRef(onApplyEurPerKm);
+  applyEurRef.current = onApplyEurPerKm;
+
+  const annualKmParsed = useMemo(() => parseKmAnnual(annualKmInput.trim() || null), [annualKmInput]);
+
   const busy = disabled || loadingBrands || loadingFuels || loadingModels || calculating;
 
   const annualKmSuggestion = useMemo(() => {
-    const u = parseKmAnnual(annualKmInput.trim() || null);
-    if (u == null || !resultJson) return null;
+    if (annualKmParsed == null || !resultJson) return null;
     let data: unknown;
     try {
       data = JSON.parse(resultJson);
@@ -85,10 +89,24 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
       return null;
     }
     const bands = extractCostKmBands(data);
-    const band = suggestCostKmBandForAnnualKm(bands, u);
+    const band = suggestCostKmBandForAnnualKm(bands, annualKmParsed);
     if (!band) return null;
-    return { band, userKm: u };
-  }, [resultJson, annualKmInput]);
+    return { band, userKm: annualKmParsed };
+  }, [resultJson, annualKmParsed]);
+
+  useEffect(() => {
+    if (!resultJson || annualKmParsed == null) return;
+    let data: unknown;
+    try {
+      data = JSON.parse(resultJson);
+    } catch {
+      return;
+    }
+    const bands = extractCostKmBands(data);
+    const band = suggestCostKmBandForAnnualKm(bands, annualKmParsed);
+    if (!band) return;
+    applyEurRef.current(sanitizeDecimalTyping(String(band.cost).replace('.', ',')));
+  }, [resultJson, annualKmParsed]);
 
   const loadBrands = useCallback(async () => {
     setError(null);
@@ -427,48 +445,82 @@ export function AciCostikmProfileSection({ disabled = false, onApplyEurPerKm }: 
                 {messages.aciWizardKmBandsHint}
               </Text>
             ) : null}
-            {annualKmSuggestion ? (
-              <View style={{ gap: 6 }}>
-                <Text variant="bodyMedium" style={{ opacity: 0.9 }}>
-                  {messages.aciWizardSuggestedBandLine(
-                    annualKmSuggestion.userKm,
-                    annualKmSuggestion.band.km,
-                    String(annualKmSuggestion.band.cost).replace('.', ','),
-                  )}
-                </Text>
-                <Button
-                  mode="contained"
-                  onPress={() =>
-                    onApplyEurPerKm(
-                      sanitizeDecimalTyping(String(annualKmSuggestion.band.cost).replace('.', ',')),
-                    )
-                  }
-                  disabled={busy}
-                >
-                  {messages.aciWizardApplySuggestedBand}
-                </Button>
-              </View>
+            {annualKmParsed != null && annualKmSuggestion ? (
+              <Text variant="bodyMedium" style={{ opacity: 0.9 }}>
+                {messages.aciWizardEurPerKmAutoApplied(
+                  annualKmSuggestion.userKm,
+                  annualKmSuggestion.band.km,
+                  String(annualKmSuggestion.band.cost).replace('.', ','),
+                )}
+              </Text>
             ) : null}
-            {eurBands.length > 0
-              ? eurBands.map((b, i) => (
-                  <Button
+            {annualKmParsed == null && eurBands.length > 0 ? (
+              <View
+                style={[
+                  styles.bandsTable,
+                  {
+                    borderColor: theme.colors.outlineVariant,
+                    backgroundColor: theme.colors.surface,
+                  },
+                ]}
+              >
+                <Text variant="titleSmall" style={{ marginBottom: 6 }}>
+                  {messages.aciWizardBandsTableTitle}
+                </Text>
+                <Text variant="bodySmall" style={{ opacity: 0.78, marginBottom: 10 }}>
+                  {messages.aciWizardBandsTableHint}
+                </Text>
+                <View
+                  style={[
+                    styles.bandsHeaderRow,
+                    { backgroundColor: theme.colors.surfaceVariant },
+                  ]}
+                >
+                  <Text style={[styles.bandsColBand, { color: theme.colors.onSurfaceVariant }]}>
+                    {messages.aciWizardBandsColBand}
+                  </Text>
+                  <Text style={[styles.bandsColRate, { color: theme.colors.onSurfaceVariant }]}>
+                    {messages.aciWizardBandsColRate}
+                  </Text>
+                </View>
+                {eurBands.map((b, i) => (
+                  <Pressable
                     key={`${b.label}-${b.value}-${i}`}
-                    mode="contained-tonal"
+                    accessibilityRole="button"
                     onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(b.value))}
                     disabled={busy}
+                    android_ripple={{ color: theme.colors.primaryContainer }}
+                    style={({ pressed }) => [
+                      styles.bandsDataRow,
+                      {
+                        backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface,
+                        borderBottomColor: theme.colors.outlineVariant,
+                      },
+                      i === eurBands.length - 1 ? styles.bandsDataRowLast : null,
+                    ]}
                   >
-                    {messages.aciWizardApplyRate}: {b.value} — {b.label}
-                  </Button>
-                ))
-              : suggestedEur ? (
-                  <Button
-                    mode="contained-tonal"
-                    onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(suggestedEur))}
-                    disabled={busy}
-                  >
-                    {messages.aciWizardApplyRate} ({suggestedEur})
-                  </Button>
-                ) : null}
+                    <Text style={[styles.bandsColBand, { color: theme.colors.onSurface }]}>{b.label}</Text>
+                    <Text
+                      style={[
+                        styles.bandsColRate,
+                        { color: theme.colors.primary, fontWeight: '600', fontVariant: ['tabular-nums'] },
+                      ]}
+                    >
+                      {b.value}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+            {annualKmParsed == null && eurBands.length === 0 && suggestedEur ? (
+              <Button
+                mode="contained-tonal"
+                onPress={() => onApplyEurPerKm(sanitizeDecimalTyping(suggestedEur))}
+                disabled={busy}
+              >
+                {messages.aciWizardApplyRate} ({suggestedEur})
+              </Button>
+            ) : null}
           </View>
         ) : null}
 
@@ -493,4 +545,28 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   jsonScroll: { maxHeight: 220, borderWidth: StyleSheet.hairlineWidth, borderColor: '#ccc', borderRadius: 8 },
   jsonText: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }), padding: 8 },
+  bandsTable: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    gap: 0,
+  },
+  bandsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  bandsDataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  bandsDataRowLast: { borderBottomWidth: 0 },
+  bandsColBand: { flex: 1.35, fontSize: 14, lineHeight: 20 },
+  bandsColRate: { flex: 0.65, fontSize: 15, lineHeight: 20, textAlign: 'right' },
 });

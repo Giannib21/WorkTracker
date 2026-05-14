@@ -82,6 +82,12 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
   }
 
   function considerObject(obj: Record<string, unknown>): void {
+    /** Risposta API ACI: `totalcosts_km: [{ label: "10.000", value: 0.77 }, …]`. */
+    if ('label' in obj && 'value' in obj) {
+      const km = parseKmAnnual(obj.label);
+      const cost = parseEurPerKm(obj.value);
+      if (km != null && cost != null) addBand(km, cost);
+    }
     const kmRaw =
       obj.km_annui ??
       obj.kmAnnui ??
@@ -142,6 +148,7 @@ export function extractCostKmBands(data: unknown): AciCostKmBand[] {
         low.includes('matrix') ||
         low.includes('rows') ||
         low.includes('outcome') ||
+        low.includes('totalcosts') ||
         (low.includes('km') && (low.includes('ann') || low.includes('max') || low.includes('min')))
       ) {
         walk(val, depth + 1);
@@ -180,9 +187,10 @@ export function suggestCostKmBandForAnnualKm(bands: AciCostKmBand[], annualKm: n
 export function extractEurPerKmBandOptions(data: unknown): { label: string; value: string }[] {
   const out: { label: string; value: string }[] = [];
   const seen = new Set<string>();
+  const fmtKm = (km: number) => new Intl.NumberFormat('it-IT').format(km);
   for (const b of extractCostKmBands(data)) {
     const val = String(b.cost).replace('.', ',');
-    pushBand(out, seen, `${b.km} km/anno`, val);
+    pushBand(out, seen, `${fmtKm(b.km)} km/anno`, val);
   }
   return out;
 }

@@ -134,6 +134,11 @@ export type Messages = {
   aciWizardAnnualKmHelper: string;
   aciWizardSuggestedBandLine: (userKm: number, bandKm: number, eurPerKm: string) => string;
   aciWizardApplySuggestedBand: string;
+  aciWizardEurPerKmAutoApplied: (userKm: number, bandKm: number, eurPerKm: string) => string;
+  aciWizardBandsTableTitle: string;
+  aciWizardBandsTableHint: string;
+  aciWizardBandsColBand: string;
+  aciWizardBandsColRate: string;
   settingsSaveButton: string;
   settingsSavedTitle: string;
   settingsSavedBody: string;
@@ -392,6 +397,13 @@ const IT: Messages = {
   aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
     `Con circa ${userKm} km annui stimati, fascia indicativa: fino a ${bandKm} km/anno (${eurPerKm} €/km).`,
   aciWizardApplySuggestedBand: 'Applica fascia suggerita',
+  aciWizardEurPerKmAutoApplied: (userKm, bandKm, eurPerKm) =>
+    `Campo €/km aggiornato automaticamente: ${eurPerKm} €/km (fascia fino a ${bandKm} km/anno, in base ai ${userKm} km indicati).`,
+  aciWizardBandsTableTitle: 'Fasce €/km dalla risposta',
+  aciWizardBandsTableHint:
+    'Indica i km annui nel campo opzionale sopra per applicare subito la fascia corretta al €/km. Oppure tocca una riga della tabella.',
+  aciWizardBandsColBand: 'Fino a km/anno',
+  aciWizardBandsColRate: '€/km',
   settingsSaveButton: 'Salva impostazioni',
   settingsSavedTitle: 'Salvato',
   settingsSavedBody: 'Impostazioni aggiornate.',
@@ -653,6 +665,13 @@ const EN: Messages = {
   aciWizardSuggestedBandLine: (userKm, bandKm, eurPerKm) =>
     `For about ${userKm} annual km, suggested band: up to ${bandKm} km/year (${eurPerKm} €/km).`,
   aciWizardApplySuggestedBand: 'Apply suggested band',
+  aciWizardEurPerKmAutoApplied: (userKm, bandKm, eurPerKm) =>
+    `€/km field updated automatically: ${eurPerKm} €/km (band up to ${bandKm} km/year, from your ${userKm} km entered).`,
+  aciWizardBandsTableTitle: '€/km bands from response',
+  aciWizardBandsTableHint:
+    'Enter annual km in the optional field above to apply the matching band automatically, or tap a table row.',
+  aciWizardBandsColBand: 'Up to km/year',
+  aciWizardBandsColRate: '€/km',
   settingsSaveButton: 'Save settings',
   settingsSavedTitle: 'Saved',
   settingsSavedBody: 'Settings updated.',

@@ -36,6 +36,7 @@ yarn-error.*
 # ACI costikm automation (sessione + browser state)
 scripts/aci/session.json
 scripts/aci/aci-session.json
+scripts/aci/aci-session.one-line.json
 scripts/aci/playwright-state.json
 
 # One-off Wikipedia dump for scripts/gen-capoluoghi-festivita.mjs
@@ -47,3 +48,6 @@ wiki_patroni.json
 # generated native folders
 /ios
 /android
+
+.vercel
+.env*.local
