@@ -54,3 +54,6 @@ wiki_patroni.json
 .env*.local
 
 .vercel
+
+.vercel
+.env*.local
