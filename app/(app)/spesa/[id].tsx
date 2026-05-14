@@ -28,6 +28,7 @@ import { parseMoneyAmount, sanitizeDecimalTyping } from '../../../utils/decimalI
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { speseUiGroups } from '../../../utils/expenseCategories';
 import { isProbablyImagePath, persistPickedFile } from '../../../utils/spesaAttachments';
+import { humanLocationLabelFromCoords } from '../../../utils/locationHumanLabel';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { appAlert } from '../../../utils/appAlert';
 
@@ -221,19 +222,8 @@ export default function SpesaDettaglio() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-
-      try {
-        const items = await Location.reverseGeocodeAsync(pos.coords);
-        const first = items[0];
-        const nice =
-          first && (first.city || first.subregion || first.region)
-            ? [first.city, first.subregion, first.region].filter(Boolean).join(', ')
-            : coords;
-        setLocalita(nice);
-      } catch {
-        setLocalita(coords);
-      }
+      const label = await humanLocationLabelFromCoords(pos.coords);
+      setLocalita(label);
     } catch {
       appAlert(messages.errorTitle, messages.gpsFailedBody);
     }

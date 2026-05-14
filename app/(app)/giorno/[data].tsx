@@ -33,6 +33,7 @@ import { ensureDefaultLavoroDaysForMonth, oreSettingsFromImpostazioni } from '..
 import { labelCategoriaSpesa } from '../../../utils/expenseCategories';
 import { hoursFromNumber, parseHoursStateString, processHoursInput } from '../../../utils/halfHourHours';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
+import { humanLocationLabelFromCoords } from '../../../utils/locationHumanLabel';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { hapticSelection } from '../../../utils/haptics';
 import { appAlert } from '../../../utils/appAlert';
@@ -333,19 +334,8 @@ export default function GiornoDettaglio() {
         return;
       }
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const coords = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
-
-      try {
-        const items = await Location.reverseGeocodeAsync(pos.coords);
-        const first = items[0];
-        const nice =
-          first && (first.city || first.subregion || first.region)
-            ? [first.city, first.subregion, first.region].filter(Boolean).join(', ')
-            : coords;
-        setLuogo(nice);
-      } catch {
-        setLuogo(coords);
-      }
+      const label = await humanLocationLabelFromCoords(pos.coords);
+      setLuogo(label);
     } catch {
       appAlert(messages.errorTitle, messages.gpsFailedBody);
     }

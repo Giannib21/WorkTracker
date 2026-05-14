@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.4] — 2026-05-14
+
+### Changed
+
+- Versione app e pacchetto portate a **2.2.4** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+
+### Fixed
+
+- **Web / PWA:** pulsante **GPS** su **giornata** e **spesa** inseriva solo le **coordinate** perché `expo-location` non supporta il reverse geocoding nel browser. Ora, su web, si usa un fallback (**OpenStreetMap Nominatim**) per ottenere un **indirizzo leggibile**; su iOS/Android resta il geocoding nativo, con formattazione più ricca (via, CAP, ecc.) quando disponibili (`utils/locationHumanLabel.ts`).
+
 ## [2.2.3] — 2026-05-14
 
 ### Changed
