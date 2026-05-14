@@ -3,12 +3,13 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLocale } from '../context/AppLocaleContext';
 import { hapticButton, hapticSelection } from '../utils/haptics';
+import { isWebStandaloneDisplay } from '../utils/webStandaloneDisplay';
 
 const BAR_BORDER = 'rgba(15, 23, 42, 0.08)';
 const TAB_ICON_SIZE = 24;
@@ -40,7 +41,13 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   const router = useRouter();
   const { messages } = useAppLocale();
 
-  const bottomPad = Math.max(insets.bottom, 10);
+  const webStandalone = Platform.OS === 'web' && isWebStandaloneDisplay();
+  /** Browser mobile: safe-area da RN. PWA standalone su iPhone: `env()` + minimo ~come l’area home nativa. */
+  const bottomPadStyle = (
+    webStandalone
+      ? { paddingBottom: 'max(34px, env(safe-area-inset-bottom, 0px))' }
+      : { paddingBottom: Math.max(insets.bottom, 10) }
+  ) as ViewStyle;
 
   const onTabPress = (route: (typeof state.routes)[0], index: number) => {
     const event = navigation.emit({
@@ -111,8 +118,8 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
     <View
       style={[
         styles.wrap,
+        bottomPadStyle,
         {
-          paddingBottom: bottomPad,
           borderTopColor: BAR_BORDER,
           backgroundColor: theme.colors.surface,
         },

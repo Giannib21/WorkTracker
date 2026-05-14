@@ -8,6 +8,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-05-14
+
+### Changed
+
+- Versione app e pacchetto portate a **2.2.1** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **`HapticButton` / `HapticIconButton`:** feedback aptico anche su `onPress` (con deduplicazione su `onPressIn` / `onPressOut`) così il Taptic parte anche se `onPressIn` non scatta su alcuni percorsi.
+- **`utils/haptics.ts`:** nessun log di diagnostica; `impactAsync` con stile **Medium**.
+
+### Fixed
+
+- **Web PWA (iPhone, app installata da home):** tab bar distanziata dal bordo inferiore in modalità standalone (`utils/webStandaloneDisplay.ts`, padding con `env(safe-area-inset-bottom)`); `WebPwaBootstrap` aggiunge **`viewport-fit=cover`** al meta viewport così le safe area iOS sono disponibili.
+
 ## [2.1.0] — 2026-05-14
 
 ### Added

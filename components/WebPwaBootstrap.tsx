@@ -60,6 +60,16 @@ export function WebPwaBootstrap() {
       document.head.appendChild(m);
     }
 
+    /** Così iOS espone `env(safe-area-inset-*)` (bordi PWA / notch / home indicator). */
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+      const content = viewport.getAttribute('content') ?? '';
+      if (!/\bviewport-fit=cover\b/i.test(content)) {
+        const next = content.trim() ? `${content.trim()}, viewport-fit=cover` : 'width=device-width, initial-scale=1, viewport-fit=cover';
+        viewport.setAttribute('content', next);
+      }
+    }
+
     if (!document.querySelector('link[rel="apple-touch-icon"]')) {
       const link = document.createElement('link');
       link.rel = 'apple-touch-icon';
