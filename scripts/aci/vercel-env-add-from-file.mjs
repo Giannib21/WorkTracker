@@ -14,6 +14,7 @@
  *   node scripts/aci/vercel-env-add-from-file.mjs production ./scripts/aci/jwt-one-line.txt ACI_COSTIKM_KEYCLOAK_TOKEN
  *
  * Se la variabile esiste già: `npx vercel env rm NOME production` poi rilancia questo script.
+ * Per sessione + JWT in un colpo solo dopo il login: `npm run aci:capture-push` (vedi `capture-session.ts`).
  */
 
 import { readFileSync, existsSync } from 'node:fs';

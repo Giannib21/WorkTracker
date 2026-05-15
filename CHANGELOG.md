@@ -8,6 +8,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.2.5] — 2026-05-15
+
+### Added
+
+- **`npm run aci:capture-push`:** dopo login CIE/SPID in Chromium, un solo INVIO salva la sessione, aggiorna su Vercel **`ACI_SESSION_JSON`** e **`ACI_COSTIKM_KEYCLOAK_TOKEN`** (se il JWT è nello snapshot), poi **`vercel redeploy`** sull’ultimo deployment per ogni ambiente in `--vercel-env` (default: `production`). Opzioni: `--no-vercel-redeploy`, `--vercel-redeploy-no-wait`. Richiede `vercel link` e `vercel login` nella root del repo.
+- Moduli condivisi **`scripts/aci/session-vercel.ts`** (estrazione JWT Keycloak) e **`scripts/aci/vercelEnvCli.ts`** (push variabili e redeploy via CLI Vercel).
+
+### Changed
+
+- Versione app e pacchetto portate a **2.2.5** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **GPS — etichetta posizione:** da coordinate si mostra solo **comune** (o equivalente) e **provincia / area amministrativa**, senza via né CAP; su web Nominatim usa `county` per la provincia in Italia (`utils/locationHumanLabel.ts`).
+- Script ACI: logica JWT e push Vercel centralizzati; messaggi aggiornati in `capture-session`, `print-vercel-env`, `session-manager` e `vercel-env-add-from-file`.
+
 ## [2.2.4] — 2026-05-14
 
 ### Changed

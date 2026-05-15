@@ -10,6 +10,7 @@
  *   npm run aci:print-vercel-env -- --write-one-line   # scrive anche scripts/aci/aci-session.one-line.json (gitignored)
  *
  * Automazione deploy (richiede `vercel` CLI, progetto già collegato con `vercel link`):
+ *   npm run aci:capture-push       # consigliato: cattura + push variabili + redeploy ultimo deployment
  *   npm run aci:vercel-env-add-session
  *   (PowerShell non supporta `comando < file` come bash; usa lo script sopra oppure:
  *   Get-Content .\\scripts\\aci\\aci-session.one-line.json -Raw | npx vercel env add ACI_SESSION_JSON production)
@@ -23,7 +24,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import type { AciSavedSession } from './session-types';
-import { extractBearerFromStorage } from './session-util';
+import { keycloakJwtFromSession } from './session-vercel';
 
 const DEFAULT_IN = resolve(process.cwd(), 'scripts/aci/aci-session.json');
 const ONE_LINE_OUT = resolve(process.cwd(), 'scripts/aci/aci-session.one-line.json');
@@ -37,19 +38,6 @@ function parseArgs(argv: string[]): { inputPath: string; writeOneLine: boolean }
     else if (a === '--write-one-line') writeOneLine = true;
   }
   return { inputPath, writeOneLine };
-}
-
-function keycloakJwtFromSession(s: AciSavedSession): string | null {
-  const direct = typeof s.bearerToken === 'string' ? s.bearerToken.trim() : '';
-  if (direct.length > 40) return direct;
-  const ik = s.importantKeys;
-  if (ik && typeof ik === 'object') {
-    for (const k of ['token', 'access_token', 'accessToken', 'id_token'] as const) {
-      const v = ik[k];
-      if (typeof v === 'string' && v.trim().length > 40) return v.trim();
-    }
-  }
-  return extractBearerFromStorage(s.localStorage ?? {});
 }
 
 async function main(): Promise<void> {

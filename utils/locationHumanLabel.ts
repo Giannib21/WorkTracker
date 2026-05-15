@@ -6,21 +6,19 @@ function coordsFallback(coords: { latitude: number; longitude: number }): string
   return `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`;
 }
 
+function sameLabel(a: string | undefined | null, b: string | undefined | null): boolean {
+  return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+}
+
+/** Solo comune / centro abitato + livello «provinciale» (region in Expo), senza via né CAP. */
 function formatFromExpoAddress(first: LocationGeocodedAddress | undefined): string | null {
   if (!first) return null;
-  const streetLine = [first.streetNumber, first.street].filter(Boolean).join(' ').trim();
   const locality = first.city || first.district || first.subregion || first.name;
+  const admin = first.region;
   const parts: string[] = [];
-  if (streetLine) parts.push(streetLine);
-  if (locality) parts.push(locality);
-  if (first.region && first.region !== locality) parts.push(first.region);
-  if (first.postalCode) parts.push(first.postalCode);
-  if (first.country) parts.push(first.country);
-  const joined = parts.filter(Boolean).join(', ');
-  if (joined) return joined;
-  if (first.city || first.subregion || first.region) {
-    return [first.city, first.subregion, first.region].filter(Boolean).join(', ');
-  }
+  if (locality) parts.push(locality.trim());
+  if (admin && !sameLabel(admin, locality)) parts.push(admin.trim());
+  if (parts.length) return parts.join(', ');
   return null;
 }
 
@@ -49,9 +47,6 @@ async function reverseGeocodeNominatimWeb(lat: number, lon: number): Promise<str
     };
     const a = data.address;
     if (a) {
-      const road = a.road || a.pedestrian || a.path || a.residential;
-      const house = a.house_number;
-      const streetPart = [house, road].filter(Boolean).join(' ').trim();
       const place =
         a.city ||
         a.town ||
@@ -60,28 +55,23 @@ async function reverseGeocodeNominatimWeb(lat: number, lon: number): Promise<str
         a.hamlet ||
         a.suburb ||
         a.city_district;
-      const region = a.state || a.region || a.county;
-      const zip = a.postcode;
-      const country = a.country;
-      const segments: string[] = [];
-      if (streetPart) segments.push(streetPart);
-      if (place) segments.push(place);
-      if (region && region !== place) segments.push(region);
-      if (zip) segments.push(zip);
-      if (country) segments.push(country);
-      const compact = segments.filter(Boolean).join(', ');
-      if (compact) return compact;
+      // In Italia la provincia è di solito in `county` (non usiamo `state`, che è spesso la regione).
+      const province = a.county;
+      const parts: string[] = [];
+      if (place) parts.push(place);
+      if (province && !sameLabel(province, place)) parts.push(province);
+      if (parts.length) return parts.join(', ');
+      if (province) return province;
     }
-    const dn = data.display_name?.trim();
-    return dn || null;
+    return null;
   } catch {
     return null;
   }
 }
 
 /**
- * Etichetta leggibile (indirizzo / città) dalle coordinate.
- * Su web Expo non supporta il reverse geocoding: si usa OpenStreetMap Nominatim come fallback.
+ * Etichetta leggibile dalle coordinate: comune (o equivalente) + provincia / area amministrativa,
+ * senza indirizzo preciso. Su web Expo non supporta il reverse geocoding: si usa Nominatim.
  */
 export async function humanLocationLabelFromCoords(coords: {
   latitude: number;

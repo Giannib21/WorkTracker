@@ -1,6 +1,6 @@
 {
   "name": "worktracker",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -13,6 +13,7 @@
     "typecheck:aci": "tsc --noEmit -p scripts/aci/tsconfig.json",
     "lint": "eslint .",
     "aci:capture": "tsx scripts/aci/capture-session.ts",
+    "aci:capture-push": "tsx scripts/aci/capture-session.ts --auto-wait --push-vercel",
     "aci:print-vercel-env": "tsx scripts/aci/print-vercel-env.ts",
     "aci:vercel-env-add-session": "node scripts/aci/vercel-env-add-from-file.mjs",
     "aci:bootstrap": "tsx scripts/aci/session-manager.ts",

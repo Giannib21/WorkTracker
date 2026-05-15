@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     `Cookie: ${cookies.length} voci | apiCaptchaPublic: ${apiCaptchaPublic ? 'sì' : 'non trovata'} | bearer: ${bearerToken ? 'sì' : 'no'}`,
   );
   console.log(
-    '\nPer Vercel: imposta ACI_SESSION_JSON con il contenuto del file (JSON su una riga), oppure usa uno script di deploy che aggiorna la variabile.',
+    '\nPer Vercel: `npm run aci:capture-push` aggiorna le variabili da CLI, oppure `npm run aci:print-vercel-env` per copiare a mano.',
   );
 
   await browser.close();
