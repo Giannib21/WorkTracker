@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Card, Divider, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
+import { ActivityIndicator, Card, Divider, SegmentedButtons, Switch, Text, TextInput } from 'react-native-paper';
 
 import { HapticButton } from '../../../components/HapticButton';
 import { hapticSelection } from '../../../utils/haptics';
@@ -18,6 +18,8 @@ import { getAppReleaseVersion } from '../../../utils/appVersion';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { appAlert } from '../../../utils/appAlert';
+import { formatBackupSize, restoreWorkTrackerBackup, summarizeBackup } from '../../../utils/backupRestore';
+import { createAndShareBackupFile, pickAndParseBackupFile } from '../../../utils/backupRestoreIO';
 
 export default function ImpostazioniTab() {
   const insets = useSafeAreaInsets();
@@ -31,6 +33,7 @@ export default function ImpostazioniTab() {
   const [festivitaLocaliAbilitate, setFestivitaLocaliAbilitate] = useState(true);
   const [manualDdmm, setManualDdmm] = useState('');
   const [indirizzoAzienda, setIndirizzoAzienda] = useState<string>(COMPANY_LOCKED.address);
+  const [backupBusy, setBackupBusy] = useState<'create' | 'restore' | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -81,7 +84,100 @@ export default function ImpostazioniTab() {
     return mo.length > 0 ? `${d}/${mo}` : `${d}/`;
   }
 
-  const canSave = useMemo(() => !loading && !saving, [loading, saving]);
+  const canSave = useMemo(() => !loading && !saving && !backupBusy, [loading, saving, backupBusy]);
+
+  const formatSummaryLine = useCallback(
+    (summary: ReturnType<typeof summarizeBackup>, locale: AppLanguage) => {
+      const dateStr = summary.createdAt
+        ? new Date(summary.createdAt).toLocaleString(locale === 'en' ? 'en-GB' : 'it-IT')
+        : '—';
+      if (locale === 'en') {
+        return `${summary.giorniCount} attendance days · ${summary.speseCount} expenses · ${summary.attachmentsCount} attachments\nBackup from ${dateStr} · app ${summary.appVersion || '—'}`;
+      }
+      return `${summary.giorniCount} giorni presenze · ${summary.speseCount} spese · ${summary.attachmentsCount} allegati\nBackup del ${dateStr} · app ${summary.appVersion || '—'}`;
+    },
+    []
+  );
+
+  function mapBackupError(err: unknown): string {
+    const code = err instanceof Error ? err.message : '';
+    if (code === 'BACKUP_WRONG_FORMAT' || code === 'BACKUP_INVALID_JSON' || code === 'BACKUP_INVALID_FORMAT') {
+      return messages.settingsBackupErrInvalid;
+    }
+    if (code === 'BACKUP_UNSUPPORTED_VERSION') return messages.settingsBackupErrUnsupported;
+    if (code === 'BACKUP_SHARE_UNAVAILABLE') return messages.settingsBackupErrShare;
+    if (code === 'BACKUP_PICKER_CANCELED') return '';
+    return messages.settingsBackupErrGeneric;
+  }
+
+  async function onCreateBackup() {
+    if (backupBusy) return;
+    setBackupBusy('create');
+    try {
+      const { byteSize, payload } = await createAndShareBackupFile();
+      const summary = summarizeBackup(payload);
+      const summaryLine = formatSummaryLine(summary, appLanguage);
+      appAlert(
+        messages.settingsBackupSuccessTitle,
+        messages.settingsBackupSuccessBody(summaryLine, formatBackupSize(byteSize))
+      );
+    } catch (err) {
+      const msg = mapBackupError(err);
+      if (msg) appAlert(messages.errorTitle, msg);
+    } finally {
+      setBackupBusy(null);
+    }
+  }
+
+  async function runRestore(payload: Awaited<ReturnType<typeof pickAndParseBackupFile>>) {
+    setBackupBusy('restore');
+    try {
+      await restoreWorkTrackerBackup(payload);
+      const all = await getImpostazioniAll();
+      setOreLunGio(all.ore_default_lun_gio ?? String(DEFAULT_ORE_LUN_GIO));
+      setOreVen(all.ore_default_ven ?? String(DEFAULT_ORE_VEN));
+      setAppLanguage(normalizeAppLanguage(all.app_language));
+      const addr = String(all.indirizzo_azienda ?? '').trim() || COMPANY_LOCKED.address;
+      setIndirizzoAzienda(addr);
+      setFestivitaLocaliAbilitate(parseFestivitaLocaliAbilitate(all));
+      setManualDdmm(String(all.festivita_locali_ddmm ?? '').trim());
+      await refreshLanguage();
+      appAlert(messages.settingsBackupRestoreSuccessTitle, messages.settingsBackupRestoreSuccessBody);
+    } catch (err) {
+      const msg = mapBackupError(err);
+      if (msg) appAlert(messages.errorTitle, msg);
+    } finally {
+      setBackupBusy(null);
+    }
+  }
+
+  function onRestoreBackup() {
+    if (backupBusy) return;
+    void (async () => {
+      try {
+        const payload = await pickAndParseBackupFile();
+        const summary = summarizeBackup(payload);
+        const summaryLine = formatSummaryLine(summary, appLanguage);
+        appAlert(
+          messages.settingsBackupRestoreConfirmTitle,
+          messages.settingsBackupRestoreConfirmMessage(summaryLine),
+          [
+            { text: messages.settingsBackupRestoreConfirmCancel, style: 'cancel' },
+            {
+              text: messages.settingsBackupRestoreConfirmOk,
+              style: 'destructive',
+              onPress: () => {
+                void runRestore(payload);
+              },
+            },
+          ]
+        );
+      } catch (err) {
+        const msg = mapBackupError(err);
+        if (msg) appAlert(messages.errorTitle, msg);
+      }
+    })();
+  }
 
   async function onSave() {
     setSaving(true);
@@ -204,6 +300,42 @@ export default function ImpostazioniTab() {
         </Card.Content>
       </Card>
 
+      <Card>
+        <Card.Content style={{ gap: 14 }}>
+          <Text variant="titleMedium">{messages.settingsBackupTitle}</Text>
+          <Text style={styles.backupHint}>{messages.settingsBackupHint}</Text>
+          <View style={styles.backupActions}>
+            <HapticButton
+              mode="contained-tonal"
+              icon="cloud-upload-outline"
+              onPress={onCreateBackup}
+              disabled={Boolean(backupBusy) || loading}
+              style={styles.backupBtn}
+            >
+              {messages.settingsBackupCreateButton}
+            </HapticButton>
+            <HapticButton
+              mode="outlined"
+              icon="cloud-download-outline"
+              onPress={onRestoreBackup}
+              disabled={Boolean(backupBusy) || loading}
+              style={styles.backupBtn}
+            >
+              {messages.settingsBackupRestoreButton}
+            </HapticButton>
+          </View>
+          {backupBusy ? (
+            <View style={styles.backupBusyRow}>
+              <ActivityIndicator size="small" />
+              <Text style={styles.backupBusyText}>
+                {backupBusy === 'create' ? messages.settingsBackupCreateButton : messages.settingsBackupRestoreButton}
+                …
+              </Text>
+            </View>
+          ) : null}
+        </Card.Content>
+      </Card>
+
       <HapticButton mode="contained" onPress={onSave} loading={saving} disabled={!canSave}>
         {messages.settingsSaveButton}
       </HapticButton>
@@ -254,5 +386,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     opacity: 0.68,
+  },
+  backupHint: {
+    fontSize: 13,
+    lineHeight: 19,
+    opacity: 0.72,
+  },
+  backupActions: {
+    gap: 10,
+  },
+  backupBtn: {
+    alignSelf: 'stretch',
+  },
+  backupBusyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    opacity: 0.8,
+  },
+  backupBusyText: {
+    fontSize: 13,
   },
 });

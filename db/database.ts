@@ -350,3 +350,84 @@ export async function setImpostazione(chiave: string, valore: string): Promise<v
     [chiave, valore]
   );
 }
+
+export async function listAllGiorni(): Promise<GiornoRow[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(`SELECT * FROM giorni ORDER BY data ASC`);
+  return rows.map(normalizeGiornoRow);
+}
+
+export async function listAllSpese(): Promise<SpesaRow[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<any>(`SELECT * FROM spese ORDER BY id ASC`);
+  return rows.map(normalizeSpesaRow);
+}
+
+/** Sostituisce tutti i dati locali (usato dal ripristino backup). */
+export async function replaceAllDataFromBackup(input: {
+  giorni: GiornoInsert[];
+  spese: SpesaInsert[];
+  impostazioni: Record<string, string>;
+}): Promise<void> {
+  const db = await getDb();
+  await db.execAsync('BEGIN IMMEDIATE');
+  try {
+    await db.runAsync(`DELETE FROM spese`);
+    await db.runAsync(`DELETE FROM giorni`);
+    await db.runAsync(`DELETE FROM impostazioni`);
+    for (const g of input.giorni) {
+      await db.runAsync(
+        `INSERT INTO giorni (data, tipo, ore, trasferta, ore_trasferta, ore_permesso, luogo, progetto, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          g.data,
+          g.tipo,
+          g.ore,
+          g.trasferta,
+          g.ore_trasferta,
+          g.ore_permesso,
+          g.luogo,
+          g.progetto,
+          g.note,
+        ]
+      );
+    }
+    for (const s of input.spese) {
+      await db.runAsync(
+        `INSERT INTO spese (data, tipo, importo, valuta, descrizione, fornitore, foto_path, km, eur_per_km, modello_auto, percorso_da, percorso_a, localita, progetto)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          s.data,
+          s.tipo,
+          s.importo,
+          s.valuta,
+          s.descrizione,
+          s.fornitore,
+          s.foto_path,
+          s.km,
+          s.eur_per_km,
+          s.modello_auto,
+          s.percorso_da,
+          s.percorso_a,
+          s.localita,
+          s.progetto,
+        ]
+      );
+    }
+    for (const [chiave, valore] of Object.entries(input.impostazioni)) {
+      await db.runAsync(
+        `INSERT INTO impostazioni (chiave, valore) VALUES (?, ?)
+         ON CONFLICT(chiave) DO UPDATE SET valore=excluded.valore`,
+        [chiave, valore]
+      );
+    }
+    await db.execAsync('COMMIT');
+  } catch (err) {
+    try {
+      await db.execAsync('ROLLBACK');
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
+}

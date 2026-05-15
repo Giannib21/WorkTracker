@@ -27,6 +27,7 @@ import { hapticSelection } from '../../../utils/haptics';
 import { parseMoneyAmount, sanitizeDecimalTyping } from '../../../utils/decimalInput';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { speseUiGroups } from '../../../utils/expenseCategories';
+import { useAttachmentPreviewUri } from '../../../hooks/useAttachmentPreviewUri';
 import { isProbablyImagePath, persistPickedFile } from '../../../utils/spesaAttachments';
 import { humanLocationLabelFromCoords } from '../../../utils/locationHumanLabel';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
@@ -79,6 +80,7 @@ export default function SpesaDettaglio() {
   const [percorsoDa, setPercorsoDa] = useState<string>('');
   const [percorsoA, setPercorsoA] = useState<string>('');
   const [fotoPath, setFotoPath] = useState<string | null>(null);
+  const attachmentPreviewUri = useAttachmentPreviewUri(fotoPath);
   const [picking, setPicking] = useState(false);
 
   const [profileKmModel, setProfileKmModel] = useState('');
@@ -673,8 +675,12 @@ export default function SpesaDettaglio() {
               </HapticButton>
             ) : null}
           </View>
-          {fotoPath && isProbablyImagePath(fotoPath) ? (
-            <Image source={{ uri: fotoPath }} style={styles.preview} resizeMode="contain" />
+          {fotoPath && isProbablyImagePath(fotoPath) && attachmentPreviewUri ? (
+            <Image
+              source={{ uri: attachmentPreviewUri }}
+              style={styles.preview}
+              resizeMode="contain"
+            />
           ) : fotoPath ? (
             <Text style={{ opacity: 0.8 }} numberOfLines={2}>
               {messages.expAllegatoLabel} {fotoPath.split('/').pop()}

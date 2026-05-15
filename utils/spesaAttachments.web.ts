@@ -1,4 +1,6 @@
-/** Percorso web: allegati come data URL (persistono nel DB SQLite come stringa). */
+import { isWebAttachmentRef, putWebAttachmentRef, WEB_ATTACHMENT_REF_PREFIX } from './webAttachmentStore';
+
+/** Percorso web: data URL in SQLite oppure riferimento IndexedDB (`wt-att:…`). */
 
 export function attachmentsDirUri(): string | null {
   return 'web:data-url';
@@ -48,12 +50,20 @@ export async function persistPickedFile(sourceUri: string, originalName?: string
     for (let j = 0; j < sub.length; j++) binary += String.fromCharCode(sub[j]!);
   }
   const b64 = btoa(binary);
-  return `data:${mime};base64,${b64}`;
+  const id = `pick_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return putWebAttachmentRef(id, mime, b64);
 }
 
 export function isProbablyImagePath(uri: string | null | undefined): boolean {
   if (!uri) return false;
+  if (isWebAttachmentRef(uri)) return true;
   if (/^data:image\//i.test(uri)) return true;
   const ext = uri.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
   return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'].includes(ext);
 }
+
+export function normalizeAttachmentDisplayUri(uri: string): string {
+  return uri;
+}
+
+export { WEB_ATTACHMENT_REF_PREFIX };

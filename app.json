@@ -2,7 +2,7 @@
   "expo": {
     "name": "WorkTracker",
     "slug": "WorkTracker",
-    "version": "2.2.5",
+    "version": "2.3.0",
     "platforms": [
       "ios",
       "android",

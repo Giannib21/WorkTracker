@@ -129,6 +129,22 @@ export type Messages = {
   settingsSavedTitle: string;
   settingsSavedBody: string;
   settingsSaveErr: string;
+  settingsBackupTitle: string;
+  settingsBackupHint: string;
+  settingsBackupCreateButton: string;
+  settingsBackupRestoreButton: string;
+  settingsBackupRestoreConfirmTitle: string;
+  settingsBackupRestoreConfirmMessage: (summary: string) => string;
+  settingsBackupRestoreConfirmOk: string;
+  settingsBackupRestoreConfirmCancel: string;
+  settingsBackupSuccessTitle: string;
+  settingsBackupSuccessBody: (summary: string, sizeLabel: string) => string;
+  settingsBackupRestoreSuccessTitle: string;
+  settingsBackupRestoreSuccessBody: string;
+  settingsBackupErrGeneric: string;
+  settingsBackupErrShare: string;
+  settingsBackupErrInvalid: string;
+  settingsBackupErrUnsupported: string;
   exportMailUnavailable: string;
   /** Web: flusso email PDF (mailto non allega file; vedi dialog export). */
   exportWebMailHint: string;
@@ -320,7 +336,7 @@ const IT: Messages = {
   settingsAboutChannel: 'Distribuzione: beta (il feedback è benvenuto).',
   settingsAboutPrivacyTitle: 'Privacy in sintesi',
   settingsAboutPrivacyBody:
-    'I dati (presenze, spese, impostazioni) restano sul dispositivo, in un database locale. L’app non richiede account e non invia i tuoi movimenti a server remoti. Email con PDF allegato, condivisione export, fotocamera, galleria e posizione entrano in gioco solo quando usi quelle funzioni in modo esplicito.',
+    'I dati (presenze, spese, impostazioni) restano sul dispositivo, in un database locale. L’app non richiede account e non invia i tuoi movimenti a server remoti. Un backup completo verso il tuo cloud (OneDrive, Drive, ecc.) avviene solo se lo crei tu da Impostazioni. Email con PDF allegato, condivisione export, fotocamera, galleria e posizione entrano in gioco solo quando usi quelle funzioni in modo esplicito.',
   settingsProfileTitle: 'Profilo',
   settingsEmployeeName: 'Nome dipendente / collaboratore',
   settingsMatricola: 'Numero matricola',
@@ -387,6 +403,26 @@ const IT: Messages = {
   settingsSavedTitle: 'Salvato',
   settingsSavedBody: 'Impostazioni aggiornate.',
   settingsSaveErr: 'Impossibile salvare le impostazioni.',
+  settingsBackupTitle: 'Backup e ripristino',
+  settingsBackupHint:
+    'Esporta tutti i dati (presenze, spese, profilo, impostazioni e allegati ricevute) in un file. Salvalo su OneDrive, Google Drive, iCloud o dove preferisci. Su un altro dispositivo usa «Ripristina» per sostituire i dati locali con quelli del backup.',
+  settingsBackupCreateButton: 'Crea backup',
+  settingsBackupRestoreButton: 'Ripristina da file',
+  settingsBackupRestoreConfirmTitle: 'Ripristinare il backup?',
+  settingsBackupRestoreConfirmMessage: (summary) =>
+    `I dati attuali su questo dispositivo verranno sostituiti.\n\n${summary}`,
+  settingsBackupRestoreConfirmOk: 'Ripristina',
+  settingsBackupRestoreConfirmCancel: 'Annulla',
+  settingsBackupSuccessTitle: 'Backup pronto',
+  settingsBackupSuccessBody: (summary, sizeLabel) =>
+    `File creato (${sizeLabel}). Usa il menu di sistema per salvarlo nel tuo cloud.\n\n${summary}`,
+  settingsBackupRestoreSuccessTitle: 'Ripristino completato',
+  settingsBackupRestoreSuccessBody:
+    'Dati e allegati ripristinati. Torna alla Home o alle Spese per vedere i contenuti aggiornati.',
+  settingsBackupErrGeneric: 'Operazione non riuscita. Riprova.',
+  settingsBackupErrShare: 'Condivisione non disponibile su questo dispositivo.',
+  settingsBackupErrInvalid: 'File non valido o danneggiato. Verifica di aver scelto un backup WorkTracker (.wtbackup).',
+  settingsBackupErrUnsupported: 'Versione backup non supportata. Aggiorna l’app e riprova.',
   exportMailUnavailable: 'Mail Composer non è disponibile su questo dispositivo.',
   exportWebMailHint:
     'Su web il PDF non può essere allegato automaticamente alla email. Usa il pulsante «Condividi PDF» dopo averlo generato.',
@@ -583,7 +619,7 @@ const EN: Messages = {
   settingsAboutChannel: 'Distribution: public beta (feedback welcome).',
   settingsAboutPrivacyTitle: 'Privacy at a glance',
   settingsAboutPrivacyBody:
-    'Your data (timesheets, expenses, settings) stays on the device in a local database. The app does not require an account and does not send your entries to remote servers. Email with PDF attachment, file sharing, camera, photo library, and location are used only when you explicitly choose those features.',
+    'Your data (timesheets, expenses, settings) stays on the device in a local database. The app does not require an account and does not send your entries to remote servers. A full backup to your own cloud (OneDrive, Drive, etc.) only happens if you create it from Settings. Email with PDF attachment, file sharing, camera, photo library, and location are used only when you explicitly choose those features.',
   settingsProfileTitle: 'Profile',
   settingsEmployeeName: 'Employee / contractor name',
   settingsMatricola: 'Employee ID',
@@ -650,6 +686,26 @@ const EN: Messages = {
   settingsSavedTitle: 'Saved',
   settingsSavedBody: 'Settings updated.',
   settingsSaveErr: 'Could not save settings.',
+  settingsBackupTitle: 'Backup and restore',
+  settingsBackupHint:
+    'Export all data (attendance, expenses, profile, settings, and receipt attachments) to a file. Save it to OneDrive, Google Drive, iCloud, or anywhere you trust. On another device, use “Restore” to replace local data with the backup.',
+  settingsBackupCreateButton: 'Create backup',
+  settingsBackupRestoreButton: 'Restore from file',
+  settingsBackupRestoreConfirmTitle: 'Restore backup?',
+  settingsBackupRestoreConfirmMessage: (summary) =>
+    `Data on this device will be replaced.\n\n${summary}`,
+  settingsBackupRestoreConfirmOk: 'Restore',
+  settingsBackupRestoreConfirmCancel: 'Cancel',
+  settingsBackupSuccessTitle: 'Backup ready',
+  settingsBackupSuccessBody: (summary, sizeLabel) =>
+    `File created (${sizeLabel}). Use the system menu to save it to your cloud.\n\n${summary}`,
+  settingsBackupRestoreSuccessTitle: 'Restore complete',
+  settingsBackupRestoreSuccessBody:
+    'Data and attachments restored. Go to Home or Expenses to see updated content.',
+  settingsBackupErrGeneric: 'Operation failed. Please try again.',
+  settingsBackupErrShare: 'Sharing is not available on this device.',
+  settingsBackupErrInvalid: 'Invalid or corrupted file. Choose a WorkTracker backup (.wtbackup).',
+  settingsBackupErrUnsupported: 'Unsupported backup version. Update the app and try again.',
   exportMailUnavailable: 'Mail is not available on this device.',
   exportWebMailHint:
     'On the web the PDF cannot be attached to email automatically. After generating it, use “Share PDF”.',

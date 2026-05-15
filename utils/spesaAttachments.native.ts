@@ -37,6 +37,14 @@ export async function persistPickedFile(sourceUri: string, originalName?: string
 
 export function isProbablyImagePath(uri: string | null | undefined): boolean {
   if (!uri) return false;
+  if (/^data:image\//i.test(uri)) return true;
   const ext = uri.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
   return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'].includes(ext);
+}
+
+/** URI utilizzabile da `Image` (alcuni path Android richiedono lo schema `file://`). */
+export function normalizeAttachmentDisplayUri(uri: string): string {
+  if (/^(file|content|data|https?):/i.test(uri)) return uri;
+  if (uri.startsWith('/')) return `file://${uri}`;
+  return uri;
 }

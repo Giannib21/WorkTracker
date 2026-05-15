@@ -9,6 +9,7 @@ import { getAppReleaseVersion } from './appVersion';
 import { companyLegalLines } from './companyInfo';
 import { computePresenzeOreBreakdown } from './giorniMeseReport';
 import { CATEGORIE_SPESE_ORDER, labelCategoriaSpesa } from './expenseCategories';
+import { isWebAttachmentRef, readWebAttachmentAsDataUrl } from './webAttachmentStore';
 
 const LOGO_PNG = require('../assets/logo-riello.png');
 
@@ -108,16 +109,24 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+async function resolveAttachmentUriForWeb(uri: string): Promise<string> {
+  if (isWebAttachmentRef(uri)) {
+    return (await readWebAttachmentAsDataUrl(uri)) ?? uri;
+  }
+  return uri;
+}
+
 async function readFileUriAsUint8Array(uri: string): Promise<Uint8Array> {
-  if (uri.startsWith('data:')) {
-    const i = uri.indexOf(',');
+  const resolved = await resolveAttachmentUriForWeb(uri);
+  if (resolved.startsWith('data:')) {
+    const i = resolved.indexOf(',');
     if (i < 0) return new Uint8Array();
-    const meta = uri.slice(0, i);
-    const payload = uri.slice(i + 1);
+    const meta = resolved.slice(0, i);
+    const payload = resolved.slice(i + 1);
     if (meta.includes(';base64')) return base64ToUint8Array(payload);
     return new TextEncoder().encode(decodeURIComponent(payload));
   }
-  const res = await fetch(uri);
+  const res = await fetch(resolved);
   return new Uint8Array(await res.arrayBuffer());
 }
 
@@ -745,6 +754,10 @@ function buildTrasferteDetailHtml(giorni: GiornoRow[], lang: AppLanguage): strin
 }
 
 async function webFileExists(uri: string): Promise<boolean> {
+  if (isWebAttachmentRef(uri)) {
+    const dataUrl = await readWebAttachmentAsDataUrl(uri);
+    return Boolean(dataUrl);
+  }
   if (uri.startsWith('data:')) return true;
   try {
     const r = await fetch(uri, { method: 'HEAD' });
@@ -761,22 +774,23 @@ async function webFileExists(uri: string): Promise<boolean> {
 
 async function fileToPdfEmbedHtml(fotoPath: string, lang: AppLanguage): Promise<string> {
   const S = pdfStrings(lang);
+  const resolvedPath = await resolveAttachmentUriForWeb(fotoPath);
   try {
     if (!(await webFileExists(fotoPath))) return `<p class="attNote">${safeText(S.attachmentMissing)}</p>`;
   } catch {
     return `<p class="attNote">${safeText(S.attachmentMissing)}</p>`;
   }
-  const ext = fotoPath.startsWith('data:')
-    ? fotoPath.split(';')[0]?.split('/')[1]?.toLowerCase() ?? ''
-    : (fotoPath.split('?')[0].split('.').pop()?.toLowerCase() ?? '');
+  const ext = resolvedPath.startsWith('data:')
+    ? resolvedPath.split(';')[0]?.split('/')[1]?.toLowerCase() ?? ''
+    : (resolvedPath.split('?')[0].split('.').pop()?.toLowerCase() ?? '');
   if (ext === 'heic' || ext === 'heif') {
     return `<p class="attNote">${safeText(S.attachmentFormatUnsupported)}</p>`;
   }
   const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-  if (imageExts.includes(ext) || fotoPath.startsWith('data:image/')) {
+  if (imageExts.includes(ext) || resolvedPath.startsWith('data:image/')) {
     try {
-      if (fotoPath.startsWith('data:')) {
-        return `<div class="attImgWrap"><img class="attImg" src="${fotoPath}" alt="" /></div>`;
+      if (resolvedPath.startsWith('data:')) {
+        return `<div class="attImgWrap"><img class="attImg" src="${resolvedPath}" alt="" /></div>`;
       }
       const b64 = uint8ArrayToBase64(await readFileUriAsUint8Array(fotoPath));
       const mime =

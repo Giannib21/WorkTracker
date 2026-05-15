@@ -8,6 +8,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-05-15
+
+### Added
+
+- **Impostazioni — Backup e ripristino (livello 1):** export di presenze, spese, impostazioni/profilo e **allegati completi** in un file `.wtbackup` (JSON); condivisione tramite menu di sistema (OneDrive, Drive, iCloud, email, ecc.); ripristino da file con conferma e sostituzione dei dati locali. Moduli `utils/backupRestore.ts`, `utils/backupRestoreIO.ts`; funzioni DB `listAllGiorni`, `listAllSpese`, `replaceAllDataFromBackup`. Stringhe i18n IT/EN; nota privacy aggiornata.
+
+### Changed
+
+- Versione app e pacchetto portate a **2.3.0** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Web — allegati:** nuovi file e foto salvati in **IndexedDB** con riferimento corto `wt-att:` in SQLite (invece di data URL giganti nel DB); `utils/webAttachmentStore.ts`, hook `hooks/useAttachmentPreviewUri.ts`; `persistPickedFile` su web allineato allo stesso modello.
+
+### Fixed
+
+- **Ripristino backup — iOS/Android:** scrittura allegati con `downloadAsync` / `encoding: 'base64'`, estensione da MIME, normalizzazione URI `file://` per l’anteprima; conversione **HEIC → JPEG** al ripristino.
+- **Ripristino backup — web (PC):** allegati ripristinati in IndexedDB e anteprima risolta via blob URL; conversione HEIC → JPEG per compatibilità con Chrome; export PDF su web che legge i riferimenti `wt-att:`.
+
 ## [2.2.5] — 2026-05-15
 
 ### Added

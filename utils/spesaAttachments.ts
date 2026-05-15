@@ -4,4 +4,5 @@ export {
   ensureAttachmentsDir,
   persistPickedFile,
   isProbablyImagePath,
+  normalizeAttachmentDisplayUri,
 } from './spesaAttachments.native';
