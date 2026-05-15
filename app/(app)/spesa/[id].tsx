@@ -4,7 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Card, Divider, Switch, Text, TextInput } from 'react-native-paper';
 
 import { HapticButton } from '../../../components/HapticButton';
@@ -27,8 +27,10 @@ import { hapticSelection } from '../../../utils/haptics';
 import { parseMoneyAmount, sanitizeDecimalTyping } from '../../../utils/decimalInput';
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { speseUiGroups } from '../../../utils/expenseCategories';
-import { useAttachmentPreviewUri } from '../../../hooks/useAttachmentPreviewUri';
-import { isProbablyImagePath, persistPickedFile } from '../../../utils/spesaAttachments';
+import { WebAttachmentPreview } from '../../../components/WebAttachmentPreview';
+import { WebDesktopFileInput } from '../../../components/WebDesktopFileInput';
+import { useAttachmentPreview } from '../../../hooks/useAttachmentPreview';
+import { persistPickedFile } from '../../../utils/spesaAttachments';
 import { humanLocationLabelFromCoords } from '../../../utils/locationHumanLabel';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { appAlert } from '../../../utils/appAlert';
@@ -80,7 +82,7 @@ export default function SpesaDettaglio() {
   const [percorsoDa, setPercorsoDa] = useState<string>('');
   const [percorsoA, setPercorsoA] = useState<string>('');
   const [fotoPath, setFotoPath] = useState<string | null>(null);
-  const attachmentPreviewUri = useAttachmentPreviewUri(fotoPath);
+  const attachmentPreview = useAttachmentPreview(fotoPath);
   const [picking, setPicking] = useState(false);
 
   const [profileKmModel, setProfileKmModel] = useState('');
@@ -308,7 +310,12 @@ export default function SpesaDettaglio() {
         quality: 0.85,
       });
       if (res.canceled || !res.assets?.[0]?.uri) return;
-      const dest = await persistPickedFile(res.assets[0].uri, res.assets[0].fileName ?? null);
+      const asset = res.assets[0];
+      const dest = await persistPickedFile(
+        asset.uri,
+        asset.fileName ?? null,
+        Platform.OS === 'web' ? ((asset as { file?: File }).file ?? null) : null
+      );
       setFotoPath(dest);
     } catch {
       appAlert(messages.errorTitle, messages.genericImageImportErr);
@@ -350,8 +357,11 @@ export default function SpesaDettaglio() {
       });
       if (res.canceled || !res.assets?.[0]) return;
       const a = res.assets[0];
-      const uri = a.uri;
-      const dest = await persistPickedFile(uri, a.name ?? null);
+      const dest = await persistPickedFile(
+        a.uri,
+        a.name ?? null,
+        Platform.OS === 'web' ? ((a as { file?: File }).file ?? null) : null
+      );
       setFotoPath(dest);
     } catch {
       appAlert(messages.errorTitle, messages.genericDocImportErr);
@@ -669,22 +679,24 @@ export default function SpesaDettaglio() {
             <HapticButton mode="outlined" icon="file-document-outline" onPress={pickFromFiles} disabled={loading || saving || picking}>
               {messages.expFile}
             </HapticButton>
+            <WebDesktopFileInput
+              label={messages.expFile}
+              disabled={loading || saving || picking}
+              onPicked={(stored) => setFotoPath(stored)}
+              onError={() => appAlert(messages.errorTitle, messages.genericDocImportErr)}
+            />
             {fotoPath ? (
               <HapticButton mode="text" onPress={removeAttachment} disabled={loading || saving || picking} textColor="#b91c1c">
                 {messages.expRimuovi}
               </HapticButton>
             ) : null}
           </View>
-          {fotoPath && isProbablyImagePath(fotoPath) && attachmentPreviewUri ? (
-            <Image
-              source={{ uri: attachmentPreviewUri }}
-              style={styles.preview}
-              resizeMode="contain"
+          {fotoPath ? (
+            <WebAttachmentPreview
+              preview={attachmentPreview}
+              allegatoLabel={messages.expAllegatoLabel}
+              openPdfLabel={messages.expOpenAttachment}
             />
-          ) : fotoPath ? (
-            <Text style={{ opacity: 0.8 }} numberOfLines={2}>
-              {messages.expAllegatoLabel} {fotoPath.split('/').pop()}
-            </Text>
           ) : null}
 
           <HapticButton mode="contained" onPress={onSave} loading={saving} disabled={loading || saving || picking}>
@@ -776,11 +788,5 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 8,
-  },
-  preview: {
-    width: '100%',
-    height: 180,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
   },
 });

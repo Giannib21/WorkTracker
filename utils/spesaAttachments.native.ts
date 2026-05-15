@@ -25,7 +25,11 @@ function extensionFromNameOrUri(originalName?: string | null, sourceUri?: string
 }
 
 /** Copia un file scelto (galleria / document picker) in una cartella persistente sotto documentDirectory. */
-export async function persistPickedFile(sourceUri: string, originalName?: string | null): Promise<string> {
+export async function persistPickedFile(
+  sourceUri: string,
+  originalName?: string | null,
+  _sourceFile?: unknown
+): Promise<string> {
   const dir = await ensureAttachmentsDir();
   if (!dir) throw new Error('Document directory not available');
   const ext = extensionFromNameOrUri(originalName, sourceUri);

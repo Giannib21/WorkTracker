@@ -15,9 +15,12 @@ import {
 } from '../db/database';
 import { getAppReleaseVersion } from './appVersion';
 import { attachmentsDirUri, ensureAttachmentsDir } from './spesaAttachments';
+import { blobToBase64 } from './webAttachmentBlob';
 import {
   clearAllWebAttachments,
+  isWebAttachmentRef,
   putWebAttachmentRef,
+  readWebAttachmentEntry,
 } from './webAttachmentStore';
 
 export const BACKUP_FORMAT_ID = 'worktracker-backup' as const;
@@ -141,22 +144,29 @@ async function readAttachmentPayload(
     };
   }
 
+  if (Platform.OS === 'web' && isWebAttachmentRef(trimmed)) {
+    const entry = await readWebAttachmentEntry(trimmed);
+    if (!entry?.dataBase64) return null;
+    const ext = extensionFromMime(entry.mime) !== 'bin' ? extensionFromMime(entry.mime) : extensionFromPath(entry.fileName ?? '');
+    return {
+      fileName: entry.fileName ?? `receipt.${ext}`,
+      mimeType: entry.mime,
+      dataBase64: entry.dataBase64,
+    };
+  }
+
   if (Platform.OS === 'web') {
     try {
+      if (!trimmed.startsWith('blob:') && !trimmed.startsWith('data:')) {
+        return null;
+      }
       const res = await fetch(trimmed);
       const blob = await res.blob();
-      const buf = new Uint8Array(await blob.arrayBuffer());
-      let binary = '';
-      const chunk = 0x8000;
-      for (let i = 0; i < buf.length; i += chunk) {
-        const sub = buf.subarray(i, Math.min(i + chunk, buf.length));
-        for (let j = 0; j < sub.length; j++) binary += String.fromCharCode(sub[j]!);
-      }
       const ext = extensionFromPath(trimmed);
       return {
         fileName: `receipt.${ext}`,
         mimeType: blob.type && blob.type !== 'application/octet-stream' ? blob.type : mimeFromExtension(ext),
-        dataBase64: btoa(binary),
+        dataBase64: await blobToBase64(blob),
       };
     } catch {
       return null;
@@ -214,6 +224,11 @@ async function convertAttachmentForWeb(att: BackupAttachment): Promise<{ mime: s
   const mime = (att.mimeType || mimeFromExtension(extensionFromPath(att.fileName))).toLowerCase();
   const dataBase64 = att.dataBase64.replace(/\s/g, '');
   const ext = extensionFromPath(att.fileName);
+
+  if (mime.includes('pdf') || ext === 'pdf') {
+    return { mime: 'application/pdf', dataBase64 };
+  }
+
   const isHeic =
     ext === 'heic' ||
     ext === 'heif' ||
@@ -262,7 +277,11 @@ async function convertAttachmentForWeb(att: BackupAttachment): Promise<{ mime: s
   } catch {
     if (isWebSafeImage) return { mime, dataBase64 };
   }
-  return { mime: 'image/jpeg', dataBase64 };
+
+  if (isHeic) {
+    throw new Error('WEB_ATT_HEIC_CONVERT_FAILED');
+  }
+  return { mime: mime || 'application/octet-stream', dataBase64 };
 }
 
 async function restoreAttachmentFile(
@@ -274,7 +293,7 @@ async function restoreAttachmentFile(
   if (Platform.OS === 'web') {
     try {
       const converted = await convertAttachmentForWeb(att);
-      return await putWebAttachmentRef(storageKey, converted.mime, converted.dataBase64);
+      return await putWebAttachmentRef(storageKey, converted.mime, converted.dataBase64, att.fileName);
     } catch {
       return null;
     }

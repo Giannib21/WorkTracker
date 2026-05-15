@@ -1,14 +1,27 @@
 /** Storage allegati su web (IndexedDB) — evita data URL giganti in SQLite. */
 
+import { base64ToBlob, blobToBase64, mimeKind } from './webAttachmentBlob';
+
 export const WEB_ATTACHMENT_REF_PREFIX = 'wt-att:';
 
 const DB_NAME = 'worktracker-web-attachments';
 const DB_VERSION = 1;
 const STORE_NAME = 'attachments';
 
+export type WebAttachmentKind = 'image' | 'pdf' | 'other';
+
 type StoredAttachment = {
   mime: string;
   dataBase64: string;
+  fileName?: string;
+};
+
+export type WebAttachmentPreviewInfo = {
+  kind: WebAttachmentKind;
+  mime: string;
+  displayUri: string | null;
+  openUri: string;
+  label: string;
 };
 
 function openDb(): Promise<IDBDatabase> {
@@ -87,22 +100,79 @@ export async function clearAllWebAttachments(): Promise<void> {
     };
     tx.objectStore(STORE_NAME).clear();
   });
+  blobUrlCache.clear();
 }
 
 /** Salva allegato in IndexedDB; ritorna riferimento corto per SQLite (`wt-att:…`). */
 export async function putWebAttachmentRef(
   id: string,
   mime: string,
-  dataBase64: string
+  dataBase64: string,
+  fileName?: string | null
 ): Promise<string> {
   const clean = dataBase64.replace(/\s/g, '');
-  await idbPut(id, { mime, dataBase64: clean });
-  return `${WEB_ATTACHMENT_REF_PREFIX}${id}`;
+  const entry: StoredAttachment = {
+    mime: mime || 'application/octet-stream',
+    dataBase64: clean,
+    ...(fileName?.trim() ? { fileName: fileName.trim() } : {}),
+  };
+
+  try {
+    await idbPut(id, entry);
+    return `${WEB_ATTACHMENT_REF_PREFIX}${id}`;
+  } catch (err) {
+    const maxInline = 1_500_000;
+    if (clean.length <= maxInline) {
+      return `data:${entry.mime};base64,${clean}`;
+    }
+    throw err;
+  }
+}
+
+export async function putWebAttachmentFromBlob(
+  id: string,
+  blob: Blob,
+  fileName?: string | null
+): Promise<string> {
+  const mime =
+    blob.type && blob.type !== 'application/octet-stream'
+      ? blob.type
+      : guessMimeFromName(fileName ?? '');
+  const dataBase64 = await blobToBase64(blob);
+  return putWebAttachmentRef(id, mime, dataBase64, fileName);
+}
+
+function guessMimeFromName(name: string): string {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'pdf':
+      return 'application/pdf';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+export async function readWebAttachmentEntry(path: string): Promise<StoredAttachment | null> {
+  if (!isWebAttachmentRef(path)) return null;
+  const entry = await idbGet(webAttachmentRefId(path));
+  return entry ?? null;
 }
 
 export async function readWebAttachmentAsDataUrl(path: string): Promise<string | null> {
-  if (!isWebAttachmentRef(path)) return null;
-  const entry = await idbGet(webAttachmentRefId(path));
+  const entry = await readWebAttachmentEntry(path);
   if (!entry?.dataBase64) return null;
   const mime = entry.mime || 'application/octet-stream';
   return `data:${mime};base64,${entry.dataBase64}`;
@@ -110,26 +180,78 @@ export async function readWebAttachmentAsDataUrl(path: string): Promise<string |
 
 const blobUrlCache = new Map<string, string>();
 
-/** URI per anteprima (`<img>` / `Image`): blob URL da IndexedDB. */
-export async function resolveWebAttachmentDisplayUri(path: string): Promise<string> {
-  if (!isWebAttachmentRef(path)) return path;
-  const cached = blobUrlCache.get(path);
-  if (cached) return cached;
-
-  const dataUrl = await readWebAttachmentAsDataUrl(path);
-  if (!dataUrl) return path;
-
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
+function cacheBlobUrl(ref: string, blob: Blob): string {
+  revokeWebAttachmentPreview(ref);
   const blobUrl = URL.createObjectURL(blob);
-  blobUrlCache.set(path, blobUrl);
+  blobUrlCache.set(ref, blobUrl);
   return blobUrl;
 }
 
-export function revokeWebAttachmentDisplayUri(path: string): void {
+export async function resolveWebAttachmentPreview(path: string): Promise<WebAttachmentPreviewInfo> {
+  if (path.startsWith('data:')) {
+    const mime = path.split(';')[0]?.replace(/^data:/i, '') ?? 'application/octet-stream';
+    const kind = mimeKind(mime);
+    return {
+      kind,
+      mime,
+      displayUri: kind === 'image' ? path : null,
+      openUri: path,
+      label: kind === 'pdf' ? 'document.pdf' : 'allegato',
+    };
+  }
+
+  if (!isWebAttachmentRef(path)) {
+    const kind = mimeKind(guessMimeFromName(path));
+    return {
+      kind,
+      mime: guessMimeFromName(path),
+      displayUri: kind === 'image' ? path : null,
+      openUri: path,
+      label: path.split('/').pop() ?? path,
+    };
+  }
+
+  const entry = await readWebAttachmentEntry(path);
+  if (!entry?.dataBase64) {
+    return {
+      kind: 'other',
+      mime: 'application/octet-stream',
+      displayUri: null,
+      openUri: path,
+      label: path,
+    };
+  }
+
+  const mime = entry.mime || 'application/octet-stream';
+  const kind = mimeKind(mime);
+  const label = entry.fileName ?? `${kind === 'pdf' ? 'documento' : 'allegato'}.${mime.split('/')[1] ?? 'bin'}`;
+  const blob = base64ToBlob(entry.dataBase64, mime);
+  const openUri = cacheBlobUrl(path, blob);
+
+  return {
+    kind,
+    mime,
+    displayUri: kind === 'image' ? openUri : kind === 'pdf' ? openUri : null,
+    openUri,
+    label,
+  };
+}
+
+/** @deprecated Usare resolveWebAttachmentPreview */
+export async function resolveWebAttachmentDisplayUri(path: string): Promise<string> {
+  const info = await resolveWebAttachmentPreview(path);
+  return info.displayUri ?? info.openUri;
+}
+
+export function revokeWebAttachmentPreview(path: string): void {
   const cached = blobUrlCache.get(path);
   if (cached?.startsWith('blob:')) {
     URL.revokeObjectURL(cached);
   }
   blobUrlCache.delete(path);
+}
+
+/** @deprecated Usare revokeWebAttachmentPreview */
+export function revokeWebAttachmentDisplayUri(path: string): void {
+  revokeWebAttachmentPreview(path);
 }

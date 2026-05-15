@@ -9,7 +9,13 @@ import { getAppReleaseVersion } from './appVersion';
 import { companyLegalLines } from './companyInfo';
 import { computePresenzeOreBreakdown } from './giorniMeseReport';
 import { CATEGORIE_SPESE_ORDER, labelCategoriaSpesa } from './expenseCategories';
-import { isWebAttachmentRef, readWebAttachmentAsDataUrl } from './webAttachmentStore';
+import { mimeKind } from './webAttachmentBlob';
+import {
+  isWebAttachmentRef,
+  readWebAttachmentAsDataUrl,
+  readWebAttachmentEntry,
+  resolveWebAttachmentPreview,
+} from './webAttachmentStore';
 
 const LOGO_PNG = require('../assets/logo-riello.png');
 
@@ -110,8 +116,13 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 }
 
 async function resolveAttachmentUriForWeb(uri: string): Promise<string> {
-  if (isWebAttachmentRef(uri)) {
-    return (await readWebAttachmentAsDataUrl(uri)) ?? uri;
+  if (isWebAttachmentRef(uri) || uri.startsWith('data:')) {
+    const info = await resolveWebAttachmentPreview(uri);
+    if (info.kind === 'image' || info.kind === 'pdf') {
+      const dataUrl = await readWebAttachmentAsDataUrl(uri);
+      if (dataUrl) return dataUrl;
+    }
+    return info.openUri;
   }
   return uri;
 }
@@ -137,8 +148,13 @@ function sortedSpeseWithFoto(spese: SpesaRow[]): SpesaRow[] {
     .sort((a, b) => (a.data > b.data ? -1 : a.data < b.data ? 1 : b.id - a.id));
 }
 
-function isPdfAttachmentPath(fotoPath: string): boolean {
+async function isPdfAttachmentPath(fotoPath: string): Promise<boolean> {
   if (/^data:application\/pdf/i.test(fotoPath)) return true;
+  if (isWebAttachmentRef(fotoPath)) {
+    const entry = await readWebAttachmentEntry(fotoPath);
+    if (entry?.mime) return mimeKind(entry.mime) === 'pdf';
+    return false;
+  }
   const ext = fotoPath.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
   return ext === 'pdf';
 }
@@ -774,38 +790,36 @@ async function webFileExists(uri: string): Promise<boolean> {
 
 async function fileToPdfEmbedHtml(fotoPath: string, lang: AppLanguage): Promise<string> {
   const S = pdfStrings(lang);
-  const resolvedPath = await resolveAttachmentUriForWeb(fotoPath);
   try {
     if (!(await webFileExists(fotoPath))) return `<p class="attNote">${safeText(S.attachmentMissing)}</p>`;
   } catch {
     return `<p class="attNote">${safeText(S.attachmentMissing)}</p>`;
   }
-  const ext = resolvedPath.startsWith('data:')
-    ? resolvedPath.split(';')[0]?.split('/')[1]?.toLowerCase() ?? ''
-    : (resolvedPath.split('?')[0].split('.').pop()?.toLowerCase() ?? '');
-  if (ext === 'heic' || ext === 'heif') {
-    return `<p class="attNote">${safeText(S.attachmentFormatUnsupported)}</p>`;
+
+  const info = await resolveWebAttachmentPreview(fotoPath);
+
+  if (info.kind === 'pdf') {
+    return `<p class="attNote">${safeText(S.attachmentPdfLine)} <strong>${safeText(info.label)}</strong></p>`;
   }
-  const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-  if (imageExts.includes(ext) || resolvedPath.startsWith('data:image/')) {
+
+  if (info.kind === 'image') {
     try {
+      const resolvedPath = await resolveAttachmentUriForWeb(fotoPath);
+      const mime = info.mime || 'image/jpeg';
       if (resolvedPath.startsWith('data:')) {
         return `<div class="attImgWrap"><img class="attImg" src="${resolvedPath}" alt="" /></div>`;
       }
       const b64 = uint8ArrayToBase64(await readFileUriAsUint8Array(fotoPath));
-      const mime =
-        ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
       return `<div class="attImgWrap"><img class="attImg" src="data:${mime};base64,${b64}" alt="" /></div>`;
     } catch {
       return `<p class="attNote">${safeText(S.attachmentMissing)}</p>`;
     }
   }
-  if (ext === 'pdf' || /^data:application\/pdf/i.test(fotoPath)) {
-    const fname = fotoPath.split('/').pop()?.split('?')[0] ?? 'file.pdf';
-    return `<p class="attNote">${safeText(S.attachmentPdfLine)} <strong>${safeText(fname)}</strong></p>`;
+  if (info.mime.includes('heic') || info.mime.includes('heif')) {
+    return `<p class="attNote">${safeText(S.attachmentFormatUnsupported)}</p>`;
   }
-  const fname = fotoPath.split('/').pop() ?? fotoPath;
-  return `<p class="attNote">${safeText(S.attachmentDocLine)}: <strong>${safeText(fname)}</strong></p>`;
+
+  return `<p class="attNote">${safeText(S.attachmentDocLine)}: <strong>${safeText(info.label)}</strong></p>`;
 }
 
 async function buildSpeseAttachmentsBlock(spese: SpesaRow[], lang: AppLanguage): Promise<string> {
@@ -850,7 +864,7 @@ function sharedPortraitStyles(): string {
       .attCard { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; background: #fafafa; width: 100%; max-width: 100%; box-sizing: border-box; flex: 0 0 auto; }
       .attCardHead { font-size: 8px; font-weight: 600; margin-bottom: 8px; color: #374151; }
       .attImgWrap { text-align: center; width: 100%; }
-      .attImg { width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block; margin: 0 auto; }
+      .attImg { max-width: 100%; width: auto; height: auto; max-height: 480px; object-fit: contain; object-position: center; display: block; margin: 0 auto; }
       .attNote { font-size: 8px; color: #6b7280; margin: 0; line-height: 1.35; }
       .kmLetterBox {
         border: 1px solid #e5e7eb;
@@ -1204,12 +1218,12 @@ async function appendPdfFileUris(base: Uint8Array, uris: string[]): Promise<Uint
   return concatPdfUint8(chunks);
 }
 
-function collectPdfReceiptUris(spese: SpesaRow[]): string[] {
+async function collectPdfReceiptUris(spese: SpesaRow[]): Promise<string[]> {
   const out: string[] = [];
   for (const s of sortedSpeseWithFoto(spese)) {
     const p = (s.foto_path ?? '').trim();
-    if (!isPdfAttachmentPath(p)) continue;
-    out.push(p);
+    if (!p) continue;
+    if (await isPdfAttachmentPath(p)) out.push(p);
   }
   return out;
 }
@@ -1254,7 +1268,7 @@ export async function generatePdfForMonth(
         const attHtml = await wrapAttachmentsPortraitDocument(Promise.resolve(inner), logo, lang);
         doc = await concatPdfUint8([doc, await printHtmlToPdfBuffer(attHtml, false)]);
       }
-      const pdfUris = await filterExistingUris(collectPdfReceiptUris(input.spese));
+      const pdfUris = await filterExistingUris(await collectPdfReceiptUris(input.spese));
       if (pdfUris.length > 0) {
         doc = await appendPdfFileUris(doc, pdfUris);
       }

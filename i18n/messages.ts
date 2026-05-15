@@ -248,6 +248,7 @@ export type Messages = {
   expFile: string;
   expRimuovi: string;
   expAllegatoLabel: string;
+  expOpenAttachment: string;
   expEliminaDomandaTitle: string;
   expEliminaDomandaBody: string;
   expEliminaSi: string;
@@ -531,6 +532,7 @@ const IT: Messages = {
   expFile: 'File',
   expRimuovi: 'Rimuovi',
   expAllegatoLabel: 'Allegato:',
+  expOpenAttachment: 'Apri allegato',
   expEliminaDomandaTitle: 'Elimina spesa',
   expEliminaDomandaBody: 'Confermi eliminazione?',
   expEliminaSi: 'Elimina',
@@ -813,6 +815,7 @@ const EN: Messages = {
   expFile: 'File',
   expRimuovi: 'Remove',
   expAllegatoLabel: 'Attachment:',
+  expOpenAttachment: 'Open attachment',
   expEliminaDomandaTitle: 'Delete expense',
   expEliminaDomandaBody: 'Delete this expense?',
   expEliminaSi: 'Delete',

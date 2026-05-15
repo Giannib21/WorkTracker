@@ -8,6 +8,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.3.1] — 2026-05-15
+
+### Added
+
+- **Web — allegati:** `components/WebAttachmentImage.tsx` (anteprima con proporzioni originali), `components/WebDesktopFileInput.tsx` (selezione file nativa su layout desktop), `utils/webAttachmentBlob.ts`, hook `hooks/useAttachmentPreview.ts`; stringa **«Apri allegato»** (`expOpenAttachment`).
+
+### Changed
+
+- Versione app e pacchetto portate a **2.3.1** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Web — allegati:** distinzione MIME immagine / PDF / altro in `webAttachmentStore`; salvataggio con `FileReader` e oggetto `File` quando disponibile; anteprima PDF con iframe e pulsante di apertura.
+
+### Fixed
+
+- **Web (browser PC e cellulare):** backup include gli allegati in IndexedDB (`wt-att:`), non solo i dati tabellari.
+- **Web — export PDF:** i PDF allegati vengono riconosciuti per MIME e **accodati** al report; le immagini nel riepilogo non sono più stirate (`width: auto`, `object-fit: contain`).
+- **Web — inserimento spese:** i PDF non venivano più trattati come immagini; caricamento affidabile da PC (input file dedicato + pass-through `File` al document picker).
+
 ## [2.3.0] — 2026-05-15
 
 ### Added
