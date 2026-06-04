@@ -299,6 +299,7 @@ function pdfStrings(lang: AppLanguage) {
       ragSocLabel: 'Company legal name & address',
       meseRifLabel: 'Reference month',
       dataDocLabel: 'Document date',
+      docNumLabel: 'n.',
       descrSpeseTitle: 'Expense description',
       subtotEsclusoKm: 'Expense subtotal',
       rimborsoKmTitle: 'Mileage reimbursements (km)',
@@ -369,6 +370,7 @@ function pdfStrings(lang: AppLanguage) {
     ragSocLabel: 'Ragione sociale dell\'azienda',
     meseRifLabel: 'Mese di riferimento',
     dataDocLabel: 'Data del documento',
+    docNumLabel: 'n.',
     descrSpeseTitle: 'Descrizione delle spese',
     subtotEsclusoKm: 'Subtotale Spese',
     rimborsoKmTitle: 'Rimborsi chilometrici (km)',
@@ -422,6 +424,21 @@ function notaPortraitMeseDataDoc(input: ReportMeseData, lang: AppLanguage): { me
   return { meseLabel, dataDoc };
 }
 
+function buildDataDocFieldRowHtml(S: ReturnType<typeof pdfStrings>, dataDoc: string): string {
+  return `<tr class="dataDocRow">
+      <th>${safeText(S.dataDocLabel)}</th>
+      <td class="dataDocCell">
+        <div class="dataDocInner">
+          <span class="dataDocDate">${safeText(dataDoc)}</span>
+          <span class="docNumGroup">
+            <span class="docNumLabel">${safeText(S.docNumLabel)}</span>
+            <span class="docNumBox"></span>
+          </span>
+        </div>
+      </td>
+    </tr>`;
+}
+
 function buildNotaPortraitHeaderHtml(
   input: ReportMeseData,
   lang: AppLanguage,
@@ -442,7 +459,7 @@ function buildNotaPortraitHeaderHtml(
       <tr><th>${safeText(S.ufficioLabel)}</th><td>${safeText(input.ufficio || '—')}</td></tr>
       <tr><th>${safeText(S.ragSocLabel)}</th><td>${ragSocCellHtml}</td></tr>
       <tr><th>${safeText(S.meseRifLabel)}</th><td>${safeText(meseLabel)}</td></tr>
-      <tr><th>${safeText(S.dataDocLabel)}</th><td>${safeText(dataDoc)}</td></tr>
+      ${buildDataDocFieldRowHtml(S, dataDoc)}
     </table>`;
 }
 
@@ -852,6 +869,20 @@ function sharedPortraitStyles(): string {
       .fieldTable { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 6px; }
       .fieldTable th { text-align: left; width: 42%; vertical-align: top; padding: 4px 6px 4px 0; color: #374151; font-weight: 700; }
       .fieldTable td { vertical-align: top; padding: 4px 0; border-bottom: 1px solid #f3f4f6; }
+      .dataDocInner { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+      .dataDocDate { flex: 0 0 auto; }
+      .docNumGroup { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
+      .docNumLabel { font-weight: 700; white-space: nowrap; }
+      .docNumBox {
+        display: inline-block;
+        min-width: 80px;
+        width: 80px;
+        height: 24px;
+        border: 1px solid #374151;
+        border-radius: 2px;
+        background: #fff;
+        box-sizing: border-box;
+      }
       table.std { width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 4px; }
       table.std th, table.std td { border-bottom: 1px solid #e5e7eb; padding: 5px 4px; vertical-align: top; }
       table.std th { text-align: left; background: #f9fafb; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: 700; }
@@ -911,21 +942,22 @@ function sharedLandscapeStyles(): string {
       .logoImg { height: 40px; width: auto; max-width: 170px; object-fit: contain; }
       .logoSpacer { flex: 1; }
       body {
-        padding: 12px 18px 16px 18px;
+        padding: 8px 10px 12px 10px;
         margin: 0;
         color: #111827;
-        font-size: 10px;
+        font-size: 11px;
       }
-      h1.headTitle { font-size: 14px; margin: 0 0 2px; font-weight: 700; }
-      .mutedLine { margin-top: 2px; font-size: 9px; color: #6b7280; }
-      h2.sectionTitle { font-size: 12px; margin: 10px 0 8px; font-weight: 700; color: #111827; }
-      .box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+      h1.headTitle { font-size: 15px; margin: 0 0 2px; font-weight: 700; }
+      .mutedLine { margin-top: 2px; font-size: 10px; color: #6b7280; }
+      h2.sectionTitle { font-size: 13px; margin: 8px 0 6px; font-weight: 700; color: #111827; }
+      .box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
       .matrixWrap { overflow: hidden; width: 100%; margin-top: 4px; }
-      table.matrix { width: 100%; border-collapse: collapse; font-size: 6.5px; table-layout: fixed; }
-      table.matrix th, table.matrix td { border: 1px solid #d1d5db; padding: 2px 1px; vertical-align: middle; }
-      table.matrix th.rowlab { width: 64px; text-align: left; background: #f9fafb; font-weight: 700; }
-      table.matrix th.dc, table.matrix td.dc { text-align: center; overflow: hidden; }
-      table.matrix th.dhead { font-weight: 800; }
+      table.matrix { width: 100%; border-collapse: collapse; font-size: 9px; table-layout: fixed; }
+      table.matrix th, table.matrix td { border: 1px solid #9ca3af; padding: 5px 3px; vertical-align: middle; line-height: 1.25; }
+      table.matrix th.rowlab { width: 78px; font-size: 9.5px; text-align: left; background: #f9fafb; font-weight: 700; }
+      table.matrix th.dc, table.matrix td.dc { text-align: center; overflow: hidden; font-size: 9px; }
+      table.matrix th.dhead { font-weight: 800; font-size: 9.5px; }
+      table.matrix td.num { font-weight: 600; }
       table.matrix th.wk,
       table.matrix td.wk {
         background-color: #cfd4dc !important;
@@ -934,20 +966,20 @@ function sharedLandscapeStyles(): string {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      .travelBlock { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb; }
-      .travelTitle { margin-bottom: 8px; font-size: 11px; }
-      .travelEmpty { margin: 0; color: #6b7280; font-size: 9px; }
-      table.trasf { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 2px; table-layout: fixed; }
-      table.trasf th, table.trasf td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; width: 25%; word-wrap: break-word; overflow-wrap: anywhere; }
+      .travelBlock { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+      .travelTitle { margin-bottom: 6px; font-size: 12px; }
+      .travelEmpty { margin: 0; color: #6b7280; font-size: 10px; }
+      table.trasf { width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 2px; table-layout: fixed; }
+      table.trasf th, table.trasf td { border: 1px solid #e5e7eb; padding: 7px 8px; vertical-align: top; width: 25%; word-wrap: break-word; overflow-wrap: anywhere; }
       table.trasf th { background: #eff6ff; text-align: left; font-weight: 700; color: #1e3a8a; }
       table.trasf tbody tr:nth-child(even) { background: #f9fafb; }
       .t-date { font-weight: 600; }
       .t-hours { white-space: nowrap; }
       .recapWrap { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e5e7eb; display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: flex-start; justify-content: flex-start; }
       .recapBlock { flex: 1 1 260px; min-width: 240px; max-width: 340px; }
-      .recapBlockTitle { font-size: 10px; font-weight: 700; color: #111827; margin: 0 0 8px 0; letter-spacing: 0.02em; }
-      table.recap { width: 100%; border-collapse: collapse; font-size: 9px; }
-      table.recap td { padding: 6px 4px; border-bottom: 1px solid #f3f4f6; vertical-align: top; color: #374151; }
+      .recapBlockTitle { font-size: 11px; font-weight: 700; color: #111827; margin: 0 0 8px 0; letter-spacing: 0.02em; }
+      table.recap { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+      table.recap td { padding: 7px 4px; border-bottom: 1px solid #f3f4f6; vertical-align: top; color: #374151; }
       table.recap td.recapVal { text-align: right; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: #111827; }
       .num { text-align: right; font-variant-numeric: tabular-nums; }
       .exportAppFooter { margin-top: 16px; padding-top: 8px; font-size: 8.5px; color: #b0b8c4; text-align: center; line-height: 1.4; }
@@ -1085,7 +1117,7 @@ function buildPresenzeLandscapeDocumentHtml(input: ReportMeseData, lang: AppLang
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
-      @page { size: A4 landscape; margin: 10mm; }
+      @page { size: A4 landscape; margin: 8mm; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
         margin: 0;

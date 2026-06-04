@@ -171,9 +171,13 @@ export default function ExportScreen() {
       const report = await buildReportData();
       const { uri, filename } = await generateExcelForMonth({
         meseKey: report.meseKey,
+        nomeUtente: report.nomeUtente,
+        matricola: report.matricola,
+        ufficio: report.ufficio,
         giorni: report.giorni,
         spese: report.spese,
         language: report.language,
+        eur_per_km_default: report.eur_per_km_default,
       });
       await shareFile(uri, filename);
     } catch {
