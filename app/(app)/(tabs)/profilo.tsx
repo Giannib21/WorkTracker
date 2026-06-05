@@ -15,6 +15,10 @@ import { finalizeDecimalForDb, sanitizeDecimalTyping } from '../../../utils/deci
 import { numericKeyboardDismissProps } from '../../../utils/numericKeyboardProps';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { appAlert } from '../../../utils/appAlert';
+import {
+  type AciVehicleCategoryId,
+  normalizeAciVehicleCategoryId,
+} from '../../../utils/aciVehicleTypes';
 
 const ACI_OFFICIAL_CALC_URL = 'https://costikm.aci.it/home';
 
@@ -32,6 +36,7 @@ export default function ProfiloTab() {
   const [emailOfficeManager, setEmailOfficeManager] = useState('');
   const [modelloAuto, setModelloAuto] = useState('');
   const [eurPerKm, setEurPerKm] = useState('0');
+  const [aciVehicleType, setAciVehicleType] = useState<AciVehicleCategoryId>('1');
   const [carCostMode, setCarCostMode] = useState<CarCostMode>('manual');
   const [aciWizardError, setAciWizardError] = useState<string | null>(null);
 
@@ -60,6 +65,8 @@ export default function ProfiloTab() {
       setEmailOfficeManager(all.email_office_manager ?? '');
       setModelloAuto(all.modello_auto ?? '');
       setEurPerKm(all.eur_per_km ?? '0');
+      const vtRaw = String((all as Record<string, unknown>).aci_vehicle_type ?? '').trim();
+      setAciVehicleType(normalizeAciVehicleCategoryId(vtRaw));
       setCarCostMode(all.profilo_car_cost_mode === 'auto' ? 'auto' : 'manual');
     })()
       .catch(() => {
@@ -88,6 +95,7 @@ export default function ProfiloTab() {
         setImpostazione('email_office_manager', emailOfficeManager.trim()),
         setImpostazione('modello_auto', modelloAuto.trim()),
         setImpostazione('eur_per_km', finalizeDecimalForDb(eurPerKm)),
+        setImpostazione('aci_vehicle_type', aciVehicleType),
         setImpostazione('profilo_car_cost_mode', carCostMode === 'auto' ? 'auto' : 'manual'),
       ]);
       appAlert(messages.profileSavedTitle, messages.profileSavedBody);
@@ -183,6 +191,8 @@ export default function ProfiloTab() {
             <AciCostikmProfileSection
               embedded
               disabled={loading || saving}
+              vehicleType={aciVehicleType}
+              onVehicleTypeChange={setAciVehicleType}
               onApplyEurPerKm={(v) => setEurPerKm(v)}
               onApplyCarModel={(description) => setModelloAuto(description)}
               onErrorChange={handleAciErrorChange}

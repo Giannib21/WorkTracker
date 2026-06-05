@@ -5,6 +5,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { Badge, Card, Divider, Switch, Text, TextInput } from 'react-native-paper';
 
+import { DayExtendDialog } from '../../../components/DayExtendDialog';
 import { HapticButton } from '../../../components/HapticButton';
 import { HapticIconButton } from '../../../components/HapticIconButton';
 import { useFocusEffect } from '@react-navigation/native';
@@ -37,6 +38,13 @@ import { humanLocationLabelFromCoords } from '../../../utils/locationHumanLabel'
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { hapticSelection } from '../../../utils/haptics';
 import { appAlert } from '../../../utils/appAlert';
+import {
+  buildExtendedGiornoInsert,
+  countWorkingDaysInclusive,
+  detectDayExtendKind,
+  listWorkingDaysToExtend,
+  type DayExtendKind,
+} from '../../../utils/giornoExtend';
 
 /**
  * Sopravvive a un remount dopo `replace`: il ref del componente può azzerarsi prima del layout
@@ -84,6 +92,7 @@ export default function GiornoDettaglio() {
 
   const [spese, setSpese] = useState<SpesaRow[]>([]);
   const [oreSettings, setOreSettings] = useState<OreDefaultsSettings>({});
+  const [extendDialogKind, setExtendDialogKind] = useState<DayExtendKind | null>(null);
 
   const oreManuallyAdjustedRef = useRef(false);
   const daySlideX = useRef(new Animated.Value(0)).current;
@@ -500,7 +509,7 @@ export default function GiornoDettaglio() {
     return msgs;
   }
 
-  async function commitSave() {
+  async function commitSave(extendEndYmd?: string) {
     if (!data || !dateObj) return;
 
     const oreN = parseHoursStateString(ore);
@@ -523,15 +532,46 @@ export default function GiornoDettaglio() {
       note: note.trim() || null,
     };
 
+    const extendKind = extendDialogKind;
+    setExtendDialogKind(null);
     setSaving(true);
     try {
       await upsertGiorno(payload);
-      appAlert(messages.alertSaved, messages.daySavedBody);
+
+      let savedDayCount = 1;
+      if (extendEndYmd && extendKind) {
+        const extraDays = listWorkingDaysToExtend(data, extendEndYmd, oreSettings);
+        const template = {
+          kind: extendKind,
+          luogo: trasferta === 1 ? luogo.trim() || null : null,
+          progetto: trasferta === 1 ? progetto.trim() || null : null,
+        };
+        for (const ymd of extraDays) {
+          await upsertGiorno(buildExtendedGiornoInsert(ymd, template, oreSettings));
+        }
+        savedDayCount = countWorkingDaysInclusive(data, extendEndYmd, oreSettings);
+      }
+
+      appAlert(
+        messages.alertSaved,
+        savedDayCount > 1 ? messages.daySavedExtendedBody(savedDayCount) : messages.daySavedBody,
+      );
     } catch {
       appAlert(messages.errorTitle, messages.daySaveFailed);
     } finally {
       setSaving(false);
     }
+  }
+
+  function proceedAfterValidation() {
+    if (!dateObj) return;
+    const oreTrasfN = parseHoursStateString(oreTrasferta);
+    const kind = detectDayExtendKind(tipo, oreTrasfN);
+    if (kind) {
+      setExtendDialogKind(kind);
+      return;
+    }
+    void commitSave();
   }
 
   async function onSave() {
@@ -561,15 +601,30 @@ export default function GiornoDettaglio() {
     if (msgs.length > 0) {
       appAlert(messages.dayHoursCheckTitle, msgs.join('\n\n'), [
         { text: messages.dayEditAction, style: 'cancel' },
-        { text: messages.daySaveAnywayAction, onPress: () => void commitSave() },
+        { text: messages.daySaveAnywayAction, onPress: () => proceedAfterValidation() },
       ]);
       return;
     }
 
-    await commitSave();
+    proceedAfterValidation();
   }
 
   return (
+    <>
+      {dateObj && extendDialogKind ? (
+        <DayExtendDialog
+          visible
+          startYmd={data}
+          startDate={dateObj}
+          kind={extendDialogKind}
+          oreSettings={oreSettings}
+          messages={messages}
+          formatDate={formatD}
+          onDismiss={() => setExtendDialogKind(null)}
+          onOnlyToday={() => void commitSave()}
+          onExtend={(endYmd) => void commitSave(endYmd)}
+        />
+      ) : null}
     <View style={styles.swipeRoot} {...panResponder.panHandlers}>
       <Animated.View style={[styles.daySlideWrap, { transform: [{ translateX: daySlideX }] }]}>
         <View style={[styles.dayStickyHeader, { paddingTop: screenHeaderPaddingTop(insets.top) }]}>
@@ -821,6 +876,7 @@ export default function GiornoDettaglio() {
     </KeyboardSafeScroll>
       </Animated.View>
     </View>
+    </>
   );
 }
 

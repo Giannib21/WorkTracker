@@ -99,6 +99,10 @@ export type Messages = {
   settingsEurPerKm: string;
   settingsDecimalHint: string;
   aciWizardTitle: string;
+  aciWizardVehicleTypeLabel: string;
+  aciWizardVehicleTypeCar: string;
+  aciWizardVehicleTypeSuv: string;
+  aciWizardVehicleTypeMoto: string;
   aciWizardLoadBrands: string;
   aciWizardSelectBrand: string;
   aciWizardSelectFuel: string;
@@ -215,6 +219,17 @@ export type Messages = {
   daySaveAnywayAction: string;
   daySavedBody: string;
   daySaveFailed: string;
+  dayExtendTitle: string;
+  dayExtendMessageTrasfertaFull: string;
+  dayExtendMessageTrasferta8h: string;
+  dayExtendMessageFerie: string;
+  dayExtendMessageMalattia: string;
+  dayExtendEndDateLabel: string;
+  dayExtendDayCount: (n: number) => string;
+  dayExtendCancel: string;
+  dayExtendOnlyToday: string;
+  dayExtendConfirm: string;
+  daySavedExtendedBody: (n: number) => string;
   listSpeseTotalsMonth: string;
   listSpeseNuova: string;
   listSpeseEmptyMonth: string;
@@ -367,6 +382,10 @@ const IT: Messages = {
   settingsEurPerKm: '€/km (decimale)',
   settingsDecimalHint: 'Usa virgola o punto per i decimali (es. 0,35 €/km).',
   aciWizardTitle: 'Ricerca veicolo (ACI costi km)',
+  aciWizardVehicleTypeLabel: 'Tipo mezzo',
+  aciWizardVehicleTypeCar: 'Autovettura',
+  aciWizardVehicleTypeSuv: 'Fuoristrada / SUV',
+  aciWizardVehicleTypeMoto: 'Motociclo',
   aciWizardLoadBrands: 'Carica marche',
   aciWizardSelectBrand: 'Marca',
   aciWizardSelectFuel: 'Carburante',
@@ -498,6 +517,22 @@ const IT: Messages = {
   daySaveAnywayAction: 'Salva comunque',
   daySavedBody: 'Giornata aggiornata.',
   daySaveFailed: 'Impossibile salvare la giornata.',
+  dayExtendTitle: 'Estendere ai giorni successivi?',
+  dayExtendMessageTrasfertaFull:
+    'Hai indicato una trasferta per l’intera giornata. Vuoi applicare la stessa compilazione anche ai giorni lavorativi successivi, fino alla data indicata?',
+  dayExtendMessageTrasferta8h:
+    'Hai indicato 8 ore di trasferta. Vuoi applicare la stessa compilazione anche ai giorni lavorativi successivi, fino alla data indicata?',
+  dayExtendMessageFerie:
+    'Hai indicato ferie per l’intera giornata. Vuoi applicare la stessa scelta anche ai giorni lavorativi successivi, fino alla data indicata?',
+  dayExtendMessageMalattia:
+    'Hai indicato una giornata di malattia. Vuoi applicare la stessa scelta anche ai giorni lavorativi successivi, fino alla data indicata?',
+  dayExtendEndDateLabel: 'Applica fino al (incluso)',
+  dayExtendDayCount: (n) => (n === 1 ? '1 giorno' : `${n} giorni`),
+  dayExtendCancel: 'Annulla',
+  dayExtendOnlyToday: 'Solo oggi',
+  dayExtendConfirm: 'Estendi',
+  daySavedExtendedBody: (n) =>
+    n === 1 ? 'Giornata aggiornata.' : `Aggiornate ${n} giornate lavorative.`,
   listSpeseTotalsMonth: 'Totale mese',
   listSpeseNuova: '+ Nuova Spesa',
   listSpeseEmptyMonth: 'Nessuna spesa registrata per questo mese.',
@@ -651,6 +686,10 @@ const EN: Messages = {
   settingsEurPerKm: '€/km (decimal)',
   settingsDecimalHint: 'Use comma or dot for decimals (e.g. 0.35 €/km).',
   aciWizardTitle: 'Vehicle lookup (ACI mileage costs)',
+  aciWizardVehicleTypeLabel: 'Vehicle type',
+  aciWizardVehicleTypeCar: 'Car',
+  aciWizardVehicleTypeSuv: 'SUV / off-road',
+  aciWizardVehicleTypeMoto: 'Motorcycle',
   aciWizardLoadBrands: 'Load brands',
   aciWizardSelectBrand: 'Brand',
   aciWizardSelectFuel: 'Fuel',
@@ -781,6 +820,22 @@ const EN: Messages = {
   daySaveAnywayAction: 'Save anyway',
   daySavedBody: 'Day updated.',
   daySaveFailed: 'Could not save the day.',
+  dayExtendTitle: 'Extend to following days?',
+  dayExtendMessageTrasfertaFull:
+    'You entered a full-day travel entry. Apply the same entry to the following working days until the date below?',
+  dayExtendMessageTrasferta8h:
+    'You entered 8 hours of travel. Apply the same entry to the following working days until the date below?',
+  dayExtendMessageFerie:
+    'You entered a full vacation day. Apply the same choice to the following working days until the date below?',
+  dayExtendMessageMalattia:
+    'You entered a sick day. Apply the same choice to the following working days until the date below?',
+  dayExtendEndDateLabel: 'Apply through (inclusive)',
+  dayExtendDayCount: (n) => (n === 1 ? '1 day' : `${n} days`),
+  dayExtendCancel: 'Cancel',
+  dayExtendOnlyToday: 'Today only',
+  dayExtendConfirm: 'Extend',
+  daySavedExtendedBody: (n) =>
+    n === 1 ? 'Day updated.' : `Updated ${n} working days.`,
   listSpeseTotalsMonth: 'Month total',
   listSpeseNuova: '+ New expense',
   listSpeseEmptyMonth: 'No expenses recorded this month.',

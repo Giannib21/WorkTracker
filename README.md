@@ -2,7 +2,7 @@
 
 App **Expo / React Native** per registrare **presenze** e **spese di trasferta**, con export (PDF, Excel), allegati alle ricevute e backup manuale. Disponibile su **iOS**, **Android** e **web** (PWA statica).
 
-Versione corrente: **2.3.1** — vedi [CHANGELOG.md](./CHANGELOG.md) per il dettaglio delle release.
+Versione corrente: **2.3.2** — vedi [CHANGELOG.md](./CHANGELOG.md) per il dettaglio delle release.
 
 ## Funzionalità principali
 

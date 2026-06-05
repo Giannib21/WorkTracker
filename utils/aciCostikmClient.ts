@@ -48,19 +48,33 @@ export type AciBrand = { id: string; name: string };
 export type AciFuel = { id: string; name: string };
 export type AciModel = { id: string; name: string; classe_euro?: string; ncap?: string; categoryId?: string };
 
+function assertAciCatalogOk(
+  scope: string,
+  data: { resultcode?: number; brands?: AciBrand[]; fuels?: AciFuel[]; models?: AciModel[] },
+): void {
+  const code = data.resultcode;
+  if (code != null && code !== 200) {
+    throw new Error(`${scope} ACI ${code}`);
+  }
+}
+
 /** Solo catalogo pubblico (`/vehicles/*`). Il proxy deve consentire solo questi path. */
 export async function fetchAciBrands(type: string = '1'): Promise<{ brands: AciBrand[]; resultcode?: number }> {
   const search = new URLSearchParams({ type });
   const res = await aciFetch('/vehicles/brands', { method: 'GET', search });
   if (!res.ok) throw new Error(`brands HTTP ${res.status}`);
-  return res.json() as Promise<{ brands: AciBrand[]; resultcode?: number }>;
+  const data = (await res.json()) as { brands: AciBrand[]; resultcode?: number };
+  assertAciCatalogOk('brands', data);
+  return data;
 }
 
 export async function fetchAciFuels(brandId: string, type: string = '1'): Promise<{ fuels: AciFuel[] }> {
   const search = new URLSearchParams({ type, brandId });
   const res = await aciFetch('/vehicles/fuels', { method: 'GET', search });
   if (!res.ok) throw new Error(`fuels HTTP ${res.status}`);
-  return res.json() as Promise<{ fuels: AciFuel[] }>;
+  const data = (await res.json()) as { fuels: AciFuel[]; resultcode?: number };
+  assertAciCatalogOk('fuels', data);
+  return data;
 }
 
 export async function fetchAciModels(
@@ -77,7 +91,9 @@ export async function fetchAciModels(
   });
   const res = await aciFetch('/vehicles/models', { method: 'GET', search });
   if (!res.ok) throw new Error(`models HTTP ${res.status}`);
-  return res.json() as Promise<{ models: AciModel[] }>;
+  const data = (await res.json()) as { models: AciModel[]; resultcode?: number };
+  assertAciCatalogOk('models', data);
+  return data;
 }
 
 export const ACI_ERROR_SESSION_EXPIRED = 'ACI_SESSION_EXPIRED';
@@ -101,6 +117,7 @@ export type AciProxyCalculateCostsParams = {
   modelName: string;
   date: string;
   vat: 0 | 1;
+  categoryId: string;
   classe_euro?: string;
   ncap?: string;
 };
@@ -125,6 +142,7 @@ export async function fetchAciCostsViaProxyCalculate(params: AciProxyCalculateCo
     modelName: params.modelName,
     date: params.date,
     vat: params.vat,
+    categoryId: params.categoryId,
     ...(params.classe_euro != null && params.classe_euro !== ''
       ? { classe_euro: params.classe_euro }
       : {}),

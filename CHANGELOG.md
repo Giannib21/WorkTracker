@@ -8,6 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.3.2] — 2026-06-05
+
+### Added
+
+- **Giorno — estensione periodo:** dopo il salvataggio di trasferta (8 h o giornata intera), ferie o malattia, dialogo per applicare gli stessi dati ai **giorni lavorativi successivi** fino a una data di fine (`components/DayExtendDialog.tsx`, `utils/giornoExtend.ts`); stringhe i18n IT/EN.
+- **Profilo — wizard ACI:** selezione **tipo mezzo** (autovettura, fuoristrada/SUV, motociclo) con preferenza `aci_vehicle_type` salvata in impostazioni; modulo `utils/aciVehicleTypes.ts` con ID categoria allineati al portale costikm.aci.it.
+
+### Changed
+
+- Versione app e pacchetto portate a **2.3.2** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Client ACI (`aciCostikmClient.ts`):** errori espliciti se il catalogo veicoli risponde con `resultcode` diverso da 200.
+- **Proxy ACI (`api/aci-proxy.mjs`):** calcolo costi con `categoryId` del modello (non più fisso a `1`).
+
+### Fixed
+
+- **Profilo — «Carica marche»:** fuoristrada/SUV e motociclo usavano codici API errati (`2`/`3`); corretti in **`5`** e **`8`**; migrazione automatica dei valori già salvati.
+- **Profilo — calcolo €/km automatico:** per SUV e moto il proxy riceve il `categoryId` corretto dal modello selezionato.
+
 ## [2.3.1] — 2026-05-15
 
 ### Added

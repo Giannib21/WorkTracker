@@ -9,6 +9,7 @@ import {
   Divider,
   List,
   Portal,
+  SegmentedButtons,
   Switch,
   Text,
   TextInput,
@@ -37,6 +38,10 @@ import {
   suggestCostKmBandForAnnualKm,
 } from '../utils/aciCostikmCostsParse';
 import { aciModelsListTimestampMs } from '../utils/aciCostikmTimestamp';
+import {
+  ACI_VEHICLE_CATEGORY,
+  type AciVehicleCategoryId,
+} from '../utils/aciVehicleTypes';
 import { sanitizeDecimalTyping } from '../utils/decimalInput';
 import { hapticSelection } from '../utils/haptics';
 
@@ -46,6 +51,8 @@ type PickerKind = 'brand' | 'fuel' | 'model' | null;
 
 type Props = {
   disabled?: boolean;
+  vehicleType: AciVehicleCategoryId;
+  onVehicleTypeChange: (type: AciVehicleCategoryId) => void;
   onApplyEurPerKm: (sanitizedDecimal: string) => void;
   /** Sincronizza il campo «Modello auto» in Profilo con la selezione ACI (marca · modello · carburante). */
   onApplyCarModel: (vehicleDescription: string) => void;
@@ -57,6 +64,8 @@ type Props = {
 
 export function AciCostikmProfileSection({
   disabled = false,
+  vehicleType,
+  onVehicleTypeChange,
   onApplyEurPerKm,
   onApplyCarModel,
   embedded = false,
@@ -95,9 +104,32 @@ export function AciCostikmProfileSection({
 
   const busy = disabled || loadingBrands || loadingFuels || loadingModels || calculating;
 
+  const typeButtons = useMemo(
+    () => [
+      { value: ACI_VEHICLE_CATEGORY.car, label: messages.aciWizardVehicleTypeCar },
+      { value: ACI_VEHICLE_CATEGORY.suv, label: messages.aciWizardVehicleTypeSuv },
+      { value: ACI_VEHICLE_CATEGORY.moto, label: messages.aciWizardVehicleTypeMoto },
+    ],
+    [messages.aciWizardVehicleTypeCar, messages.aciWizardVehicleTypeSuv, messages.aciWizardVehicleTypeMoto]
+  );
+
   useEffect(() => {
     onErrorChange?.(error);
   }, [error, onErrorChange]);
+
+  // Cambio tipo mezzo => reset catalogo.
+  useEffect(() => {
+    setBrands([]);
+    setFuels([]);
+    setModels([]);
+    setBrand(null);
+    setFuel(null);
+    setModel(null);
+    setResultJson(null);
+    setSuggestedEur(null);
+    setEurBands([]);
+    setCostFetchAck(false);
+  }, [vehicleType]);
 
   const annualKmSuggestion = useMemo(() => {
     if (annualKmParsed == null || !resultJson) return null;
@@ -146,7 +178,7 @@ export function AciCostikmProfileSection({
     setError(null);
     setLoadingBrands(true);
     try {
-      const r = await fetchAciBrands('1');
+      const r = await fetchAciBrands(vehicleType);
       setBrands(r.brands ?? []);
       setBrand(null);
       setFuel(null);
@@ -161,7 +193,7 @@ export function AciCostikmProfileSection({
     } finally {
       setLoadingBrands(false);
     }
-  }, [messages.aciWizardErrGeneric]);
+  }, [messages.aciWizardErrGeneric, vehicleType]);
 
   useEffect(() => {
     if (!brand) {
@@ -174,7 +206,7 @@ export function AciCostikmProfileSection({
     let cancelled = false;
     setLoadingFuels(true);
     setError(null);
-    fetchAciFuels(brand.id, '1')
+    fetchAciFuels(brand.id, vehicleType)
       .then((r) => {
         if (!cancelled) setFuels(r.fuels ?? []);
       })
@@ -187,7 +219,7 @@ export function AciCostikmProfileSection({
     return () => {
       cancelled = true;
     };
-  }, [brand, messages.aciWizardErrGeneric]);
+  }, [brand, messages.aciWizardErrGeneric, vehicleType]);
 
   useEffect(() => {
     if (!brand || !fuel) {
@@ -198,7 +230,7 @@ export function AciCostikmProfileSection({
     let cancelled = false;
     setLoadingModels(true);
     setError(null);
-    fetchAciModels(brand.id, fuel.id, aciModelsListTimestampMs(), '1')
+    fetchAciModels(brand.id, fuel.id, aciModelsListTimestampMs(), vehicleType)
       .then((r) => {
         if (!cancelled) setModels(r.models ?? []);
       })
@@ -211,7 +243,7 @@ export function AciCostikmProfileSection({
     return () => {
       cancelled = true;
     };
-  }, [brand, fuel, messages.aciWizardErrGeneric]);
+  }, [brand, fuel, messages.aciWizardErrGeneric, vehicleType]);
 
   function resetAll() {
     setBrands([]);
@@ -263,6 +295,10 @@ export function AciCostikmProfileSection({
         modelName: model.name,
         date: costDate.trim(),
         vat: vatNet ? 1 : 0,
+        categoryId:
+          typeof model.categoryId === 'string' && model.categoryId.trim()
+            ? model.categoryId.trim()
+            : vehicleType,
         classe_euro: typeof model.classe_euro === 'string' ? model.classe_euro : undefined,
         ncap: typeof model.ncap === 'string' ? model.ncap : undefined,
       });
@@ -377,6 +413,18 @@ export function AciCostikmProfileSection({
         <HapticButton mode="outlined" onPress={resetAll} disabled={busy}>
           {messages.aciWizardReset}
         </HapticButton>
+      </View>
+
+      <Text variant="bodyMedium">{messages.aciWizardVehicleTypeLabel}</Text>
+      <View style={{ opacity: busy ? 0.55 : 1 }} pointerEvents={busy ? 'none' : 'auto'}>
+        <SegmentedButtons
+          value={vehicleType}
+          onValueChange={(v) => {
+            hapticSelection();
+            onVehicleTypeChange(v as AciVehicleCategoryId);
+          }}
+          buttons={typeButtons}
+        />
       </View>
 
       <HapticButton

@@ -497,6 +497,7 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     vat: vatRaw,
     classe_euro,
     ncap,
+    categoryId: categoryIdRaw,
   } = payload;
 
   if (!brandId || !fuelId || !modelId || !date) {
@@ -640,7 +641,11 @@ async function handleCalculateCosts(req, res, payload, requestOrigin) {
     costsUrl.searchParams.set('fuel', String(fuelName ?? ''));
     costsUrl.searchParams.set('modelId', String(modelId));
     costsUrl.searchParams.set('model', String(modelName ?? ''));
-    costsUrl.searchParams.set('categoryId', '1');
+    const categoryId =
+      typeof categoryIdRaw === 'string' || typeof categoryIdRaw === 'number'
+        ? String(categoryIdRaw).trim()
+        : '';
+    costsUrl.searchParams.set('categoryId', categoryId || '1');
     costsUrl.searchParams.set('type', 'vehicle');
     costsUrl.searchParams.set('vat', String(vat));
     if (typeof classe_euro === 'string' && classe_euro.trim()) {
