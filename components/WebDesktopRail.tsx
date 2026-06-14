@@ -17,6 +17,7 @@ import { MonthCalendarGrid } from './MonthCalendarGrid';
 import { useAppLocale } from '../context/AppLocaleContext';
 import { useWebMonthOptional } from '../context/WebMonthContext';
 import { useWebDesktopLayout } from '../hooks/useWebDesktopLayout';
+import { exportNavigationParams } from '../utils/exportNavigation';
 
 type TabKey = 'index' | 'spese' | 'profilo' | 'impostazioni';
 
@@ -120,7 +121,7 @@ export function WebDesktopRail() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={messages.export}
-          onPress={() => router.push('/export')}
+          onPress={() => router.push(exportNavigationParams({ activeTab: active, webMonth: wm }))}
           style={({ pressed }) => [
             styles.exportRow,
             {

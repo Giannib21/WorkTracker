@@ -8,7 +8,10 @@ import { useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLocale } from '../context/AppLocaleContext';
+import { useSelectedWorkMonthOptional } from '../context/SelectedWorkMonthContext';
+import { useWebMonthOptional } from '../context/WebMonthContext';
 import { hapticButton, hapticSelection } from '../utils/haptics';
+import { exportNavigationParams } from '../utils/exportNavigation';
 import { isWebStandaloneDisplay } from '../utils/webStandaloneDisplay';
 
 const BAR_BORDER = 'rgba(15, 23, 42, 0.08)';
@@ -40,6 +43,8 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { messages } = useAppLocale();
+  const webMonth = useWebMonthOptional();
+  const selectedMonth = useSelectedWorkMonthOptional();
 
   const webStandalone = Platform.OS === 'web' && isWebStandaloneDisplay();
   /** Browser mobile: safe-area da RN. PWA standalone su iPhone: `env()` + minimo ~come l’area home nativa. */
@@ -134,7 +139,15 @@ export function AppTabBar({ state, descriptors, navigation }: BottomTabBarProps)
             onPressIn={() => {
               hapticButton();
             }}
-            onPress={() => router.push('/export')}
+            onPress={() =>
+              router.push(
+                exportNavigationParams({
+                  activeTab: state.routes[state.index]?.name,
+                  webMonth,
+                  selectedMonth,
+                })
+              )
+            }
             style={[
               styles.exportFab,
               {

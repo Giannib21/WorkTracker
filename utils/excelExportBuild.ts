@@ -4,7 +4,6 @@ import ExcelJS from 'exceljs';
 
 import type { GiornoRow, SpesaRow } from '../db/database';
 import type { AppLanguage } from '../i18n/messages';
-import { getAppReleaseVersion } from './appVersion';
 import { companyLegalLines } from './companyInfo';
 import { CATEGORIE_SPESE_ORDER, labelCategoriaSpesa } from './expenseCategories';
 import { computePresenzeOreBreakdown } from './giorniMeseReport';
@@ -130,7 +129,6 @@ function excelLabels(lang: AppLanguage) {
       travelDays: 'Travel days',
       leaveDays: 'Leave / permission days',
       sickDays: 'Sick days',
-      exportFooter: (ver: string) => `WorkTracker export — app version ${ver}`,
     };
   }
   return {
@@ -195,7 +193,6 @@ function excelLabels(lang: AppLanguage) {
     travelDays: 'Giorni trasferta',
     leaveDays: 'Giorni ferie/permesso',
     sickDays: 'Giorni malattia',
-    exportFooter: (ver: string) => `Export WorkTracker — versione app ${ver}`,
   };
 }
 
@@ -432,19 +429,6 @@ function addDataDocRow(ws: ExcelJS.Worksheet, row: number, S: L, dataDoc: string
   return row + 1;
 }
 
-function addFooter(ws: ExcelJS.Worksheet, row: number, lang: AppLanguage, colSpan = 6): number {
-  const S = excelLabels(lang);
-  ws.mergeCells(row, 1, row, colSpan);
-  const c = ws.getCell(row, 1);
-  c.value = S.exportFooter(getAppReleaseVersion());
-  c.style = {
-    font: { name: FONT, size: 9, color: { argb: 'FF9CA3AF' } },
-    alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
-  };
-  ws.getRow(row).height = 18;
-  return row + 1;
-}
-
 function buildNotaHeaderBlock(
   ws: ExcelJS.Worksheet,
   wb: ExcelJS.Workbook,
@@ -559,7 +543,6 @@ function buildNotaSpeseSheet(
   ws.getRow(r).height = 56;
   r += 5;
 
-  r = addFooter(ws, r, lang, 6);
   applyPortraitPrint(ws, r, 6);
 }
 
@@ -667,7 +650,6 @@ function buildKmSheet(
   });
   r += 2;
 
-  r = addFooter(ws, r, lang, 6);
   applyPortraitPrint(ws, r, 6);
 }
 
@@ -963,7 +945,6 @@ function buildPresenzeSheet(
   );
   r = rEnd + 1;
 
-  r = addFooter(ws, r, lang, 34);
   applyLandscapePrint(ws, r, 34);
 }
 

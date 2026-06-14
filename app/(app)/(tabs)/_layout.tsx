@@ -6,6 +6,7 @@ import { useTheme } from 'react-native-paper';
 
 import { AppTabBar } from '../../../components/AppTabBar';
 import { useAppLocale } from '../../../context/AppLocaleContext';
+import { SelectedWorkMonthProvider } from '../../../context/SelectedWorkMonthContext';
 import { useWebDesktopLayout } from '../../../hooks/useWebDesktopLayout';
 
 export default function TabsLayout() {
@@ -77,8 +78,10 @@ export default function TabsLayout() {
   }
 
   return (
-    <Tabs tabBar={(props) => <AppTabBar {...props} />} screenOptions={screenOptions}>
-      {tabScreens}
-    </Tabs>
+    <SelectedWorkMonthProvider>
+      <Tabs tabBar={(props) => <AppTabBar {...props} />} screenOptions={screenOptions}>
+        {tabScreens}
+      </Tabs>
+    </SelectedWorkMonthProvider>
   );
 }

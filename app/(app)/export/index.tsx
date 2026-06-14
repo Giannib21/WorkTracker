@@ -1,6 +1,6 @@
 import { addMonths, format, startOfMonth } from 'date-fns';
-import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { Card, Dialog, Divider, Portal, Text } from 'react-native-paper';
 
@@ -22,6 +22,7 @@ import { generateExcelForMonth } from '../../../utils/excelExport';
 import { generatePdfForMonth, shareFile, type PdfExportScope } from '../../../utils/pdf';
 import { screenHeaderPaddingTop } from '../../../utils/screenHeaderPadding';
 import { appAlert } from '../../../utils/appAlert';
+import { defaultWorkMonth, workMonthFromKey } from '../../../utils/defaultWorkMonth';
 
 function monthKey(d: Date): string {
   return format(d, 'yyyy-MM');
@@ -37,11 +38,17 @@ type WebMailFollowUp = {
   filename: string;
 };
 
+function resolveMeseRouteParam(raw: string | string[] | undefined): Date | null {
+  const s = Array.isArray(raw) ? raw[0] : raw;
+  return workMonthFromKey(s);
+}
+
 export default function ExportScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { mese: meseParam } = useLocalSearchParams<{ mese?: string | string[] }>();
   const { messages, formatD, language } = useAppLocale();
-  const [month, setMonth] = useState<Date>(() => startOfMonth(new Date()));
+  const [month, setMonth] = useState(() => resolveMeseRouteParam(meseParam) ?? defaultWorkMonth());
   const [busy, setBusy] = useState(false);
   const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
   const [attachDialogOpen, setAttachDialogOpen] = useState(false);
@@ -50,6 +57,11 @@ export default function ExportScreen() {
   const pdfIntentRef = useRef<'share' | 'email'>('share');
   /** True se nel mese corrente c’è almeno uno scontrino/allegato su una spesa (stesso caricamento del dialog scopo). */
   const pdfMonthHasAttachmentsRef = useRef(false);
+
+  useEffect(() => {
+    const parsed = resolveMeseRouteParam(meseParam);
+    if (parsed) setMonth(parsed);
+  }, [meseParam]);
 
   const meseKey = useMemo(() => monthKey(month), [month]);
   const title = useMemo(() => formatD(month, 'LLLL yyyy'), [month, formatD]);

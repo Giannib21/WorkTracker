@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MonthCalendarGrid } from '../../../components/MonthCalendarGrid';
 import { useAppLocale } from '../../../context/AppLocaleContext';
+import { useSelectedWorkMonthOptional } from '../../../context/SelectedWorkMonthContext';
 import { useWebMonthOptional } from '../../../context/WebMonthContext';
 import {
   deleteGiorniInMonth,
@@ -26,13 +27,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { messages, formatD } = useAppLocale();
   const wm = useWebMonthOptional();
+  const selectedMonth = useSelectedWorkMonthOptional();
   const isWebShell = Platform.OS === 'web' && wm != null;
 
-  const [localMonth, setLocalMonth] = useState<Date>(() => startOfMonth(new Date()));
-  const nativeData = useHomeMonthData(isWebShell ? disabledHomeMonthPlaceholder() : localMonth, !isWebShell);
-
-  const currentMonth = isWebShell ? wm.currentMonth : localMonth;
-  const setCurrentMonth = isWebShell ? wm.setCurrentMonth : setLocalMonth;
+  const currentMonth = isWebShell ? wm.currentMonth : selectedMonth!.workMonth;
+  const setCurrentMonth = isWebShell ? wm.setCurrentMonth : selectedMonth!.setWorkMonth;
+  const nativeData = useHomeMonthData(isWebShell ? disabledHomeMonthPlaceholder() : currentMonth, !isWebShell);
   const giorniByData = isWebShell ? wm.giorniByData : nativeData.giorniByData;
   const speseCountByData = isWebShell ? wm.speseCountByData : nativeData.speseCountByData;
   const monthStats = isWebShell ? wm.monthStats : nativeData.monthStats;

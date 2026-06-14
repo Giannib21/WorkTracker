@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { startOfMonth } from 'date-fns';
 
 import type { GiornoRow } from '../db/database';
 import type { HomeMonthStats } from '../hooks/useHomeMonthData';
 import { useHomeMonthData } from '../hooks/useHomeMonthData';
 import type { OreDefaultsSettings } from '../utils/defaults';
+import { defaultWorkMonth } from '../utils/defaultWorkMonth';
 
 export type WebMonthContextValue = {
   currentMonth: Date;
@@ -19,7 +19,7 @@ export type WebMonthContextValue = {
 const WebMonthContext = createContext<WebMonthContextValue | null>(null);
 
 export function WebMonthProvider({ children }: { children: ReactNode }) {
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [currentMonth, setCurrentMonth] = useState(() => defaultWorkMonth());
   const { giorniByData, speseCountByData, monthStats, oreCalSettings, reload } = useHomeMonthData(
     currentMonth,
     true

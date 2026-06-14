@@ -11,6 +11,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppLocale } from '../../../context/AppLocaleContext';
+import { useSelectedWorkMonthOptional } from '../../../context/SelectedWorkMonthContext';
 import { useWebMonthOptional } from '../../../context/WebMonthContext';
 import type { SpesaRow } from '../../../db/database';
 import { CATEGORIE_SPESE_ORDER, emptyTotalsByCategoria, labelCategoriaSpesa } from '../../../utils/expenseCategories';
@@ -45,11 +46,11 @@ export default function SpeseTab() {
   const insets = useSafeAreaInsets();
   const { messages, formatD, language } = useAppLocale();
   const wm = useWebMonthOptional();
+  const selectedMonth = useSelectedWorkMonthOptional();
   const isWebShell = Platform.OS === 'web' && wm != null;
 
-  const [localMonth, setLocalMonth] = useState<Date>(() => startOfMonth(new Date()));
-  const currentMonth = isWebShell ? wm.currentMonth : localMonth;
-  const setCurrentMonth = isWebShell ? wm.setCurrentMonth : setLocalMonth;
+  const currentMonth = isWebShell ? wm.currentMonth : selectedMonth!.workMonth;
+  const setCurrentMonth = isWebShell ? wm.setCurrentMonth : selectedMonth!.setWorkMonth;
   const [rows, setRows] = useState<SpesaRow[]>([]);
 
   const reload = useCallback(() => {

@@ -8,6 +8,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [2.3.3] — 2026-06-05
+
+### Added
+
+- **Mese di lavoro predefinito:** fino al **giorno 10** del mese corrente, Home e Spese aprono sul **mese precedente**; dal giorno 11 sul mese corrente (`utils/defaultWorkMonth.ts`, `context/SelectedWorkMonthContext.tsx`).
+- **Export — mese allineato:** aprendo Export da Home o Spese (o dal calendario web desktop), il mese preselezionato coincide con quello del tab di provenienza (`utils/exportNavigation.ts`).
+
+### Changed
+
+- Versione app e pacchetto portate a **2.3.3** (`package.json`, `package-lock.json`, `app.json`, fallback in `utils/appVersion.ts`).
+- **Home / Spese (mobile):** mese condiviso tra i due tab (come già su web desktop).
+
+### Removed
+
+- **Export PDF/Excel:** rimossa la nota a piè di pagina «Export WorkTracker — versione app x.x.x».
+
 ## [2.3.2] — 2026-06-05
 
 ### Added

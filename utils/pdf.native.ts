@@ -9,7 +9,6 @@ import * as Sharing from 'expo-sharing';
 
 import type { GiornoRow, SpesaRow } from '../db/database';
 import type { AppLanguage } from '../i18n/messages';
-import { getAppReleaseVersion } from './appVersion';
 import { companyLegalLines } from './companyInfo';
 import { computePresenzeOreBreakdown } from './giorniMeseReport';
 import { CATEGORIE_SPESE_ORDER, labelCategoriaSpesa } from './expenseCategories';
@@ -269,7 +268,6 @@ function pdfStrings(lang: AppLanguage) {
       kmKmPlannedLabel: 'Planned kilometres:',
       kmAmtPerKmLabel: 'Allowance per km',
       kmModelUnknown: '[vehicle model]',
-      exportFooter: (ver: string) => `WorkTracker export — app version ${safeText(ver)}`,
     };
   }
   return {
@@ -340,13 +338,7 @@ function pdfStrings(lang: AppLanguage) {
     kmKmPlannedLabel: 'Km previsti:',
     kmAmtPerKmLabel: 'Importo al km',
     kmModelUnknown: '[modello dell\'auto]',
-    exportFooter: (ver: string) => `Export WorkTracker — versione app ${safeText(ver)}`,
   };
-}
-
-function exportFooterDiv(lang: AppLanguage): string {
-  const S = pdfStrings(lang);
-  return `<div class="exportAppFooter">${S.exportFooter(getAppReleaseVersion())}</div>`;
 }
 
 function interpolateKmTpl(tpl: string, name: string, matricola: string): string {
@@ -573,7 +565,6 @@ function buildRimborsoKmLetterPortraitHtml(
     </div>
 
     ${tableHtml}
-    ${exportFooterDiv(lang)}
   </body>
 </html>`;
 }
@@ -872,7 +863,6 @@ function sharedPortraitStyles(): string {
       table.kmRecap td.kmTotLabel { text-align: left; vertical-align: middle; }
       table.kmRecap th, table.kmRecap td { border: 1px solid #e5e7eb; padding: 5px 4px; vertical-align: top; }
       table.kmRecap th { background: #f9fafb; font-weight: 700; text-align: left; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .exportAppFooter { margin-top: 18px; padding-top: 10px; font-size: 8.5px; color: #b0b8c4; text-align: center; line-height: 1.4; }
   `;
 }
 
@@ -922,7 +912,6 @@ function sharedLandscapeStyles(): string {
       table.recap td { padding: 7px 4px; border-bottom: 1px solid #f3f4f6; vertical-align: top; color: #374151; }
       table.recap td.recapVal { text-align: right; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; color: #111827; }
       .num { text-align: right; font-variant-numeric: tabular-nums; }
-      .exportAppFooter { margin-top: 16px; padding-top: 8px; font-size: 8.5px; color: #b0b8c4; text-align: center; line-height: 1.4; }
   `;
 }
 
@@ -987,7 +976,6 @@ function buildNotaSpeseCoverPortraitHtml(input: ReportMeseData, lang: AppLanguag
     <div class="signBox">
       <p class="signHint">${safeText(S.firmaLabel)}</p>
     </div>
-    ${exportFooterDiv(lang)}
   </body>
 </html>`;
 }
@@ -1021,7 +1009,6 @@ async function wrapAttachmentsPortraitDocument(
   <body>
     ${logoHeaderBlock(logoDataUri)}
     ${innerBody}
-    ${exportFooterDiv(lang)}
   </body>
 </html>`;
 }
@@ -1083,7 +1070,6 @@ function buildPresenzeLandscapeDocumentHtml(input: ReportMeseData, lang: AppLang
       ${travelHtml}
       ${recapHtml}
     </div>
-    ${exportFooterDiv(lang)}
   </body>
 </html>`;
 }
@@ -1198,7 +1184,7 @@ export async function generatePdfForMonth(
     outBytes = presenzaBuf;
   } else {
     outBytes = await printHtmlToPdfBuffer(
-      `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:11px;padding:16px}.exportAppFooter{margin-top:20px;font-size:8.5px;color:#b0b8c4;text-align:center}</style></head><body><p>${safeText(pdfStrings(lang).nonePres)}</p>${exportFooterDiv(lang)}</body></html>`,
+      `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:11px;padding:16px}</style></head><body><p>${safeText(pdfStrings(lang).nonePres)}</p></body></html>`,
       false
     );
   }
